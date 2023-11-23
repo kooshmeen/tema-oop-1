@@ -1,0 +1,65 @@
+[ {
+  "command" : "search",
+  "user" : "emily30",
+  "timestamp" : 5,
+  "message" : "Search returned 5 results",
+  "results" : [ "Money Trees", "Big Pimpin'", "Whatever You Need", "Sicko Mode", "Empire State of Mind" ]
+}, {
+  "command" : "select",
+  "user" : "emily30",
+  "timestamp" : 10,
+  "message" : "Successfully selected Big Pimpin'."
+}, {
+  "command" : "load",
+  "user" : "emily30",
+  "timestamp" : 15,
+  "message" : "Playback loaded successfully."
+}, {
+  "command" : "search",
+  "user" : "emily30",
+  "timestamp" : 25,
+  "message" : "Search returned 1 results",
+  "results" : [ "The Joe Rogan Experience" ]
+}, {
+  "command" : "select",
+  "user" : "emily30",
+  "timestamp" : 30,
+  "message" : "Successfully selected fileio.input.PodcastInput@2f0a87b3."
+}, {
+  "command" : "load",
+  "user" : "emily30",
+  "timestamp" : 31,
+  "message" : "Playback loaded successfully."
+}, {
+  "command" : "search",
+  "user" : "emily30",
+  "timestamp" : 45,
+  "message" : "Search returned 3 results",
+  "results" : [ "Bohemian Rhapsody", "We Will Rock You", "Radio Ga Ga" ]
+}, {
+  "command" : "search",
+  "user" : "emily30",
+  "timestamp" : 60,
+  "message" : "Search returned 4 results",
+  "results" : [ "The Man", "Freedom", "Castle on the Hill", "Get Lucky" ]
+}, {
+  "command" : "select",
+  "user" : "emily30",
+  "timestamp" : 70,
+  "message" : "Successfully selected Get Lucky."
+}, {
+  "command" : "load",
+  "user" : "emily30",
+  "timestamp" : 71,
+  "message" : "Playback loaded successfully."
+}, {
+  "command" : "select",
+  "user" : "emily30",
+  "timestamp" : 85,
+  "message" : "Successfully selected The Man."
+}, {
+  "command" : "load",
+  "user" : "emily30",
+  "timestamp" : 86,
+  "message" : "Playback loaded successfully."
+} ]

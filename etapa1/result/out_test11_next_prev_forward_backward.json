@@ -1,0 +1,182 @@
+[ {
+  "command" : "search",
+  "user" : "bob35",
+  "timestamp" : 170,
+  "message" : "Search returned 5 results",
+  "results" : [ "Start Me Up", "Black Dog", "Paint It Black", "Gimme Shelter", "Bohemian Rhapsody" ]
+}, {
+  "command" : "select",
+  "user" : "bob35",
+  "timestamp" : 190,
+  "message" : "Successfully selected Start Me Up."
+}, {
+  "command" : "load",
+  "user" : "bob35",
+  "timestamp" : 195,
+  "message" : "Playback loaded successfully."
+}, {
+  "command" : "search",
+  "user" : "bob35",
+  "timestamp" : 270,
+  "message" : "Search returned 5 results",
+  "results" : [ "Shape of You", "Don't", "Maps", "The Man", "Freedom" ]
+}, {
+  "command" : "select",
+  "user" : "bob35",
+  "timestamp" : 290,
+  "message" : "Successfully selected Shape of You."
+}, {
+  "command" : "load",
+  "user" : "bob35",
+  "timestamp" : 295,
+  "message" : "Playback loaded successfully."
+}, {
+  "command" : "search",
+  "user" : "bob35",
+  "timestamp" : 370,
+  "message" : "Search returned 5 results",
+  "results" : [ "Stairway to Heaven", "Under Pressure", "Dream On", "Big Pimpin'", "The Unforgiven" ]
+}, {
+  "command" : "select",
+  "user" : "bob35",
+  "timestamp" : 390,
+  "message" : "Successfully selected Stairway to Heaven."
+}, {
+  "command" : "load",
+  "user" : "bob35",
+  "timestamp" : 420,
+  "message" : "Playback loaded successfully."
+}, {
+  "command" : "search",
+  "user" : "bob35",
+  "timestamp" : 440,
+  "message" : "Search returned 5 results",
+  "results" : [ "Stairway to Heaven", "Under Pressure", "Dream On", "Big Pimpin'", "The Unforgiven" ]
+}, {
+  "command" : "select",
+  "user" : "bob35",
+  "timestamp" : 445,
+  "message" : "Successfully selected Under Pressure."
+}, {
+  "command" : "load",
+  "user" : "bob35",
+  "timestamp" : 446,
+  "message" : "Playback loaded successfully."
+}, {
+  "command" : "status",
+  "user" : "bob35",
+  "timestamp" : 480,
+  "stats" : {
+    "name" : "Under Pressure",
+    "remainedTime" : 210,
+    "repeat" : "No Repeat",
+    "shuffle" : false,
+    "paused" : false
+  }
+}, {
+  "command" : "select",
+  "user" : "bob35",
+  "timestamp" : 510,
+  "message" : "Successfully selected Stairway to Heaven."
+}, {
+  "command" : "load",
+  "user" : "bob35",
+  "timestamp" : 650,
+  "message" : "Playback loaded successfully."
+}, {
+  "command" : "status",
+  "user" : "bob35",
+  "timestamp" : 655,
+  "stats" : {
+    "name" : "Stairway to Heaven",
+    "remainedTime" : 451,
+    "repeat" : "No Repeat",
+    "shuffle" : false,
+    "paused" : false
+  }
+}, {
+  "command" : "status",
+  "user" : "bob35",
+  "timestamp" : 690,
+  "stats" : {
+    "name" : "Stairway to Heaven",
+    "remainedTime" : 416,
+    "repeat" : "No Repeat",
+    "shuffle" : false,
+    "paused" : false
+  }
+}, {
+  "command" : "status",
+  "user" : "bob35",
+  "timestamp" : 711,
+  "stats" : {
+    "name" : "Stairway to Heaven",
+    "remainedTime" : 395,
+    "repeat" : "No Repeat",
+    "shuffle" : false,
+    "paused" : false
+  }
+}, {
+  "command" : "status",
+  "user" : "bob35",
+  "timestamp" : 713,
+  "stats" : {
+    "name" : "Stairway to Heaven",
+    "remainedTime" : 393,
+    "repeat" : "No Repeat",
+    "shuffle" : false,
+    "paused" : false
+  }
+}, {
+  "command" : "search",
+  "user" : "bob35",
+  "timestamp" : 800,
+  "message" : "Search returned 1 results",
+  "results" : [ "How I Built This" ]
+}, {
+  "command" : "select",
+  "user" : "bob35",
+  "timestamp" : 890,
+  "message" : "Successfully selected fileio.input.PodcastInput@69379752."
+}, {
+  "command" : "load",
+  "user" : "bob35",
+  "timestamp" : 900,
+  "message" : "Playback loaded successfully."
+}, {
+  "command" : "status",
+  "user" : "bob35",
+  "timestamp" : 1049,
+  "message" : "Podcast is currently playing."
+}, {
+  "command" : "status",
+  "user" : "bob35",
+  "timestamp" : 1051,
+  "message" : "Podcast is currently playing."
+}, {
+  "command" : "search",
+  "user" : "bob35",
+  "timestamp" : 1198,
+  "message" : "Search returned 1 results",
+  "results" : [ "How I Built This" ]
+}, {
+  "command" : "select",
+  "user" : "bob35",
+  "timestamp" : 1199,
+  "message" : "Successfully selected fileio.input.PodcastInput@69379752."
+}, {
+  "command" : "load",
+  "user" : "bob35",
+  "timestamp" : 1200,
+  "message" : "Playback loaded successfully."
+}, {
+  "command" : "status",
+  "user" : "bob35",
+  "timestamp" : 1389,
+  "message" : "Podcast is currently playing."
+}, {
+  "command" : "status",
+  "user" : "bob35",
+  "timestamp" : 1391,
+  "message" : "Podcast is currently playing."
+} ]

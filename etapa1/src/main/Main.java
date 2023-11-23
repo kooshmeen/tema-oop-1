@@ -115,7 +115,8 @@ class Command {
     protected static boolean shuffle = false;
     protected static int currentTimestamp = 0;
     protected static String repeat = "No Repeat";
-    protected static boolean playing = false;
+    protected static boolean playlist = false;
+    protected static ArrayList<Playlist> playlists = new ArrayList<>();
     private int seed;
 
     public int getSeed() {
@@ -226,6 +227,12 @@ class Command {
         if (command.equals("playPause")) {
             PlayPause playPause = new PlayPause(username, timestamp);
             playPause.execute(outputs);
+        }
+        if (command.equals("createPlaylist")) {
+            playlists.add(new Playlist(playlistName, playlistId, username, timestamp, outputs));
+        }
+        if (command.equals("addRemoveInPlaylist")) {
+            playlists.get(playlists.size()).addRemoveInPlaylist(playlistName, playlistId, username, timestamp, outputs);
         }
         currentTimestamp = timestamp;
     }
@@ -491,14 +498,82 @@ class Playlist {
     private String name;
     private String id;
     private String owner;
-    private ArrayList<String> songs;
-    private ArrayList<String> podcasts;
+    private ArrayList<SongInput> songs;
+    private enum Visibility {
+        PUBLIC, PRIVATE
+    }
+    private Visibility visibility;
 
-    public Playlist(String name, String id, String owner, ArrayList<String> songs, ArrayList<String> podcasts) {
+    public Playlist(String name, String id, String owner, int timestamp, ArrayNode outputs) {
         this.name = name;
         this.id = id;
         this.owner = owner;
+        this.visibility = Visibility.PUBLIC;
+        ObjectNode playlistObj = new ObjectMapper().createObjectNode();
+        playlistObj.put("command", "createPlaylist");
+        playlistObj.put("user", owner);
+        playlistObj.put("timestamp", timestamp);
+        playlistObj.put("message", "Playlist created successfully.");
+        outputs.add(playlistObj);
+    }
+    public void addRemoveInPlaylist(String name, String id, String owner, int timestamp, ArrayNode outputs) {
+        boolean exists = false;
+        if (songs == null) {
+            songs = new ArrayList<>();
+        }
+        for (SongInput song : songs) {
+            if (song.getName().equals(Command.loadedSong.getName())) {
+                exists = true;
+                break;
+            }
+        }
+        if (!exists) {
+            songs.add(Command.loadedSong);
+            ObjectNode playlistObj = new ObjectMapper().createObjectNode();
+            playlistObj.put("command", "addRemoveInPlaylist");
+            playlistObj.put("user", owner);
+            playlistObj.put("timestamp", Command.currentTimestamp);
+            playlistObj.put("message", "Successfully added to playlist.");
+            outputs.add(playlistObj);
+        } else {
+            songs.remove(Command.loadedSong);
+            ObjectNode playlistObj = new ObjectMapper().createObjectNode();
+            playlistObj.put("command", "addRemoveInPlaylist");
+            playlistObj.put("user", owner);
+            playlistObj.put("timestamp", Command.currentTimestamp);
+            playlistObj.put("message", "Successfully removed from playlist.");
+            outputs.add(playlistObj);
+        }
+    }
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getId() {
+        return id;
+    }
+
+    public void setId(String id) {
+        this.id = id;
+    }
+
+    public String getOwner() {
+        return owner;
+    }
+
+    public void setOwner(String owner) {
+        this.owner = owner;
+    }
+
+    public ArrayList<SongInput> getSongs() {
+        return songs;
+    }
+
+    public void setSongs(ArrayList<SongInput> songs) {
         this.songs = songs;
-        this.podcasts = podcasts;
     }
 }

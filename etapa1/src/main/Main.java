@@ -84,6 +84,7 @@ public final class Main {
         ArrayList<Command> commands = objectMapper.readValue(file, new TypeReference<>() { });
         Command.setAllPlaylists(new ArrayList<>());
         Command.repeat = "No Repeat";
+        Command.shuffleFlag = false;
         Command.setLibrary(library);
         for (Command command: commands) {
             command.execute(outputs);
@@ -432,29 +433,29 @@ class Command {
                 loadedSong.setDuration(loadedSong.getDuration()
                         - (timestamp - currentTimestamp));
                 if (loadedSong.getDuration() <= 0
-                        && repeat.equals("No Repeat") && loadedPlaylist.getSongs().
-                        indexOf(loadedSong) == loadedPlaylist.getSongs().size() - 1) {
+                        && repeat.equals("No Repeat") && loadedPlaylistShuffle.getSongs().
+                        indexOf(loadedSong) == loadedPlaylistShuffle.getSongs().size() - 1) {
                     finished = true;
                     paused = true;
                 } else if (loadedSong.getDuration() <= 0 && playlist
-                        && loadedPlaylist.getSongs().indexOf(loadedSong)
-                        < loadedPlaylist.getSongs().size() - 1 && repeat.equals("No Repeat")) {
+                        && loadedPlaylistShuffle.getSongs().indexOf(loadedSong)
+                        < loadedPlaylistShuffle.getSongs().size() - 1 && repeat.equals("No Repeat")) {
                     int duration = loadedSong.getDuration();
                     loadedSong =
-                            loadedPlaylist.getSongs().get(loadedPlaylist.getSongs()
+                            loadedPlaylistShuffle.getSongs().get(loadedPlaylistShuffle.getSongs()
                                     .indexOf(loadedSong) + 1);
                     if (loadedSong.getDuration() + duration > 0) {
                         loadedSong.setDuration(loadedSong.getDuration() + duration);
                     } else {
                         while (duration < 0) {
                             duration += loadedSong.getDuration();
-                            if (duration < 0 && loadedPlaylist.getSongs().indexOf(loadedSong)
-                                    < loadedPlaylist.getSongs().size() - 1) {
+                            if (duration < 0 && loadedPlaylistShuffle.getSongs().indexOf(loadedSong)
+                                    < loadedPlaylistShuffle.getSongs().size() - 1) {
                                 loadedSong =
-                                        loadedPlaylist.getSongs().get(loadedPlaylist.getSongs()
+                                        loadedPlaylistShuffle.getSongs().get(loadedPlaylistShuffle.getSongs()
                                                 .indexOf(loadedSong) + 1);
-                            } else if (duration < 0 && loadedPlaylist.getSongs().indexOf(loadedSong)
-                                    == loadedPlaylist.getSongs().size() - 1) {
+                            } else if (duration < 0 && loadedPlaylistShuffle.getSongs().indexOf(loadedSong)
+                                    == loadedPlaylistShuffle.getSongs().size() - 1) {
                                 finished = true;
                                 paused = true;
                             }
@@ -467,13 +468,13 @@ class Command {
                         }
                     }
                 } else if (loadedSong.getDuration() <= 0 && playlist
-                        && loadedPlaylist.getSongs().indexOf(loadedSong)
-                        == loadedPlaylist.getSongs().size() - 1 && repeat.equals("No Repeat")) {
+                        && loadedPlaylistShuffle.getSongs().indexOf(loadedSong)
+                        == loadedPlaylistShuffle.getSongs().size() - 1 && repeat.equals("No Repeat")) {
                     finished = true;
                     paused = true;
                 } else if (loadedSong.getDuration() <= 0 && playlist
-                        && loadedPlaylist.getSongs().indexOf(loadedSong)
-                        == loadedPlaylist.getSongs().size() - 1 && repeat.equals("Repeat All")) {
+                        && loadedPlaylistShuffle.getSongs().indexOf(loadedSong)
+                        == loadedPlaylistShuffle.getSongs().size() - 1 && repeat.equals("Repeat All")) {
                     int duration = loadedSong.getDuration();
                     loadedSong.setDuration(originalDuration);
                     loadedSong =
@@ -493,24 +494,24 @@ class Command {
                     }
                     loadedSong.setDuration(originalDuration + duration);
                 } else if (loadedSong.getDuration() <= 0 && playlist
-                        && loadedPlaylist.getSongs().indexOf(loadedSong)
-                        < loadedPlaylist.getSongs().size() - 1 && repeat.equals("Repeat All")) {
+                        && loadedPlaylistShuffle.getSongs().indexOf(loadedSong)
+                        < loadedPlaylistShuffle.getSongs().size() - 1 && repeat.equals("Repeat All")) {
                     int duration = loadedSong.getDuration();
                     loadedSong.setDuration(originalDuration);
                     loadedSong =
-                            loadedPlaylist.getSongs().get(loadedPlaylist.getSongs()
+                            loadedPlaylistShuffle.getSongs().get(loadedPlaylistShuffle.getSongs()
                                     .indexOf(loadedSong) + 1);
                     while (duration < 0) {
                         duration += loadedSong.getDuration();
-                        if (duration < 0 && loadedPlaylist.getSongs().indexOf(loadedSong)
-                                < loadedPlaylist.getSongs().size() - 1) {
+                        if (duration < 0 && loadedPlaylistShuffle.getSongs().indexOf(loadedSong)
+                                < loadedPlaylistShuffle.getSongs().size() - 1) {
                             loadedSong =
-                                    loadedPlaylist.getSongs().get(loadedPlaylist.getSongs()
+                                    loadedPlaylistShuffle.getSongs().get(loadedPlaylistShuffle.getSongs()
                                             .indexOf(loadedSong) + 1);
-                        } else if (duration < 0 && loadedPlaylist.getSongs().indexOf(loadedSong)
-                                == loadedPlaylist.getSongs().size() - 1) {
+                        } else if (duration < 0 && loadedPlaylistShuffle.getSongs().indexOf(loadedSong)
+                                == loadedPlaylistShuffle.getSongs().size() - 1) {
                             loadedSong =
-                                    loadedPlaylist.getSongs().get(0);
+                                    loadedPlaylistShuffle.getSongs().get(0);
                         }
                     }
                     loadedSong.setDuration(originalDuration - (originalDuration - duration));
@@ -940,14 +941,14 @@ class Status extends Command {
                 stats.put("name", "");
                 stats.put("remainedTime", 0);
                 stats.put("repeat", repeat);
-                stats.put("shuffle", shuffle);
+                stats.put("shuffle", shuffleFlag);
                 stats.put("paused", paused);
             } else {
                 ObjectNode stats = statusObj.putObject("stats");
                 stats.put("name", loadedSong.getName());
                 stats.put("remainedTime", loadedSong.getDuration());
                 stats.put("repeat", repeat);
-                stats.put("shuffle", shuffle);
+                stats.put("shuffle", shuffleFlag);
                 stats.put("paused", paused);
             }
         } else {

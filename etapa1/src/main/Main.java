@@ -3,7 +3,6 @@ package main;
 import checker.Checker;
 import checker.CheckerConstants;
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -19,6 +18,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Objects;
 
 /**
@@ -100,15 +100,17 @@ class Command {
     private String type;
     private HashMap<String, Object> filters;
     private String playlistName;
-    private String playlistId;
+    private int playlistId;
     protected enum LastType {
-        SONG, PODCAST
+        SONG, PLAYLIST, PODCAST
     }
     protected static LastType lastType;
     protected static ArrayList<SongInput> searchResSong = new ArrayList<>();
+    protected static ArrayList<Playlist> searchedPlaylist = new ArrayList<>();
     protected static ArrayList<PodcastInput> searchResPodcast = new ArrayList<>();
     protected static SongInput selectedSong = new SongInput();
     protected static PodcastInput selectedPodcast = new PodcastInput();
+    protected static Playlist selectedPlaylist = new Playlist();
     protected static SongInput loadedSong = new SongInput();
     protected static PodcastInput loadedPodcast = new PodcastInput();
     protected static boolean paused = true;
@@ -116,8 +118,9 @@ class Command {
     protected static int currentTimestamp = 0;
     protected static String repeat = "No Repeat";
     protected static boolean playlist = false;
-    protected static ArrayList<Playlist> playlists = new ArrayList<>();
+    protected static ArrayList<Playlist> allPlaylists = new ArrayList<>();
     private int seed;
+    protected static ArrayList<UserLiked> userLiked = new ArrayList<>();
 
     public int getSeed() {
         return seed;
@@ -135,11 +138,11 @@ class Command {
         this.playlistName = playlistName;
     }
 
-    public String getPlaylistId() {
+    public int getPlaylistId() {
         return playlistId;
     }
 
-    public void setPlaylistId(String playlistId) {
+    public void setPlaylistId(int playlistId) {
         this.playlistId = playlistId;
     }
 
@@ -229,10 +232,54 @@ class Command {
             playPause.execute(outputs);
         }
         if (command.equals("createPlaylist")) {
-            playlists.add(new Playlist(playlistName, playlistId, username, timestamp, outputs));
+            int userPlaylists = 1;
+            for (Playlist playlist : allPlaylists) {
+                if (playlist.getOwner().equals(username)) {
+                    userPlaylists++;
+                }
+            }
+            CreatePlaylist createPlaylist = new CreatePlaylist(username, timestamp, playlistName, userPlaylists);
+            createPlaylist.execute(outputs);
+            //playlists.add(new Playlist(playlistName, playlistId, username, timestamp, outputs));
         }
         if (command.equals("addRemoveInPlaylist")) {
-            playlists.get(playlists.size()).addRemoveInPlaylist(playlistName, playlistId, username, timestamp, outputs);
+            if (allPlaylists.isEmpty()) {
+                ObjectNode playlistObj = new ObjectMapper().createObjectNode();
+                playlistObj.put("command", "addRemoveInPlaylist");
+                playlistObj.put("user", username);
+                playlistObj.put("timestamp", timestamp);
+                playlistObj.put("message", "The specified playlist does not exist.");
+                outputs.add(playlistObj);
+            } else {
+                for (Playlist playlist : allPlaylists) {
+                    if (playlist.getOwner().equals(username) && playlist.getId() == playlistId) {
+                        AddRemoveInPlaylist addRemoveInPlaylist = new AddRemoveInPlaylist(username, timestamp, playlistName, playlistId);
+                        addRemoveInPlaylist.execute(outputs);
+                    }
+                }
+            }
+        }
+        if (command.equals("like")) {
+            UserLiked userLikeIt = null;
+            for (UserLiked user : userLiked) {
+                if (user.getUsername().equals(username)) {
+                    userLikeIt = user;
+                    break;
+                }
+            }
+            if (userLikeIt == null) {
+                userLiked.add(new UserLiked(username));
+            }
+            Like like = new Like(username, loadedSong, timestamp);
+            like.execute(outputs);
+        }
+        if (command.equals("showPlaylists")) {
+            ShowPlaylist showPlaylist = new ShowPlaylist(username, timestamp);
+            showPlaylist.execute(outputs);
+        }
+        if (command.equals("showPreferredSongs")) {
+            ShowPrefferedSongs showPrefferedSongs = new ShowPrefferedSongs(username, timestamp);
+            showPrefferedSongs.execute(outputs);
         }
         currentTimestamp = timestamp;
     }
@@ -308,6 +355,29 @@ class Search extends Command {
                 }
             }
             case "playlist" -> {
+                ArrayList<Playlist> playlists = new ArrayList<>(allPlaylists);
+                if (filters.containsKey("name")) {
+                    playlists.removeIf(playlist -> !playlist.getName().startsWith((String) filters.get("name")));
+                }
+                if (filters.containsKey("owner")) {
+                    playlists.removeIf(playlist -> !playlist.getOwner().equals(filters.get("owner")));
+                }
+                if (playlists.isEmpty()) {
+                    searchObj.put("message", "no results found");
+                } else {
+                    if (playlists.size() > 5) {
+                        playlists = new ArrayList<>(playlists.subList(0, 5));
+                    }
+                    searchObj.put("message", "Search returned " + playlists.size() + " results");
+                    ArrayNode playlistArray = searchObj.putArray("results");
+                    for (Playlist playlist : playlists) {
+                        playlistArray.add(playlist.getName());
+                    }
+                    outputs.add(searchObj);
+                }
+                searchedPlaylist.clear();
+                searchedPlaylist.addAll(playlists);
+                Command.lastType = LastType.PLAYLIST;
             }
             case "podcast" -> {
                 ArrayList<PodcastInput> podcasts = new ArrayList<>(library.getPodcasts());
@@ -363,13 +433,23 @@ class Select extends Command {
             }
             outputs.add(selectObj);
         } else if (lastType == LastType.PODCAST) {
-            if (itemNumber - 1 > searchResPodcast.size()) {
+            if (itemNumber - 1 >= searchResPodcast.size()) {
                 selectObj.put("message", "The selected ID is too high.");
             } else if (selectedPodcast == null) {
                 selectObj.put("message", "Please conduct a search before making a selection.");
             } else {
-                selectObj.put("message", "Successfully selected " + searchResPodcast.get(itemNumber - 1) + ".");
+                selectObj.put("message", "Successfully selected " + searchResPodcast.get(itemNumber - 1).getName() + ".");
                 selectedPodcast = searchResPodcast.get(itemNumber - 1);
+            }
+            outputs.add(selectObj);
+        } else if (lastType == LastType.PLAYLIST) {
+            if (itemNumber - 1 >= searchedPlaylist.size()) {
+                selectObj.put("message", "The selected ID is too high.");
+            } else if (searchedPlaylist.isEmpty()) {
+                selectObj.put("message", "Please conduct a search before making a selection.");
+            } else {
+                selectObj.put("message", "Successfully selected " + searchedPlaylist.get(itemNumber - 1).getName() + ".");
+                selectedPlaylist = searchedPlaylist.get(itemNumber - 1);
             }
             outputs.add(selectObj);
         } else {
@@ -398,6 +478,7 @@ class Load extends Command {
                 loadedSong = selectedSong;
                 paused = false;
                 currentTimestamp = timestamp;
+                playlist = false;
             }
         } else if (lastType == LastType.PODCAST) {
             if (selectedPodcast == null) {
@@ -407,6 +488,7 @@ class Load extends Command {
                 loadedPodcast = selectedPodcast;
                 paused = false;
                 currentTimestamp = timestamp;
+                playlist = false;
             }
         } else {
             loadObj.put("message", "No results found");
@@ -496,54 +578,43 @@ class PlayPause extends Command {
 
 class Playlist {
     private String name;
-    private String id;
+    private int id;
     private String owner;
     private ArrayList<SongInput> songs;
-    private enum Visibility {
+    private int userId;
+    private int followers;
+
+    public int getFollowers() {
+        return followers;
+    }
+
+    public void setFollowers(int followers) {
+        this.followers = followers;
+    }
+
+    public Playlist() {
+        songs = new ArrayList<>();
+    }
+
+    public enum Visibility {
         PUBLIC, PRIVATE
     }
     private Visibility visibility;
 
-    public Playlist(String name, String id, String owner, int timestamp, ArrayNode outputs) {
-        this.name = name;
-        this.id = id;
-        this.owner = owner;
-        this.visibility = Visibility.PUBLIC;
-        ObjectNode playlistObj = new ObjectMapper().createObjectNode();
-        playlistObj.put("command", "createPlaylist");
-        playlistObj.put("user", owner);
-        playlistObj.put("timestamp", timestamp);
-        playlistObj.put("message", "Playlist created successfully.");
-        outputs.add(playlistObj);
+    public int getUserId() {
+        return userId;
     }
-    public void addRemoveInPlaylist(String name, String id, String owner, int timestamp, ArrayNode outputs) {
-        boolean exists = false;
-        if (songs == null) {
-            songs = new ArrayList<>();
-        }
-        for (SongInput song : songs) {
-            if (song.getName().equals(Command.loadedSong.getName())) {
-                exists = true;
-                break;
-            }
-        }
-        if (!exists) {
-            songs.add(Command.loadedSong);
-            ObjectNode playlistObj = new ObjectMapper().createObjectNode();
-            playlistObj.put("command", "addRemoveInPlaylist");
-            playlistObj.put("user", owner);
-            playlistObj.put("timestamp", Command.currentTimestamp);
-            playlistObj.put("message", "Successfully added to playlist.");
-            outputs.add(playlistObj);
-        } else {
-            songs.remove(Command.loadedSong);
-            ObjectNode playlistObj = new ObjectMapper().createObjectNode();
-            playlistObj.put("command", "addRemoveInPlaylist");
-            playlistObj.put("user", owner);
-            playlistObj.put("timestamp", Command.currentTimestamp);
-            playlistObj.put("message", "Successfully removed from playlist.");
-            outputs.add(playlistObj);
-        }
+
+    public void setUserId(int userId) {
+        this.userId = userId;
+    }
+
+    public Visibility getVisibility() {
+        return visibility;
+    }
+
+    public void setVisibility(Visibility visibility) {
+        this.visibility = visibility;
     }
     public String getName() {
         return name;
@@ -553,11 +624,11 @@ class Playlist {
         this.name = name;
     }
 
-    public String getId() {
+    public int getId() {
         return id;
     }
 
-    public void setId(String id) {
+    public void setId(int id) {
         this.id = id;
     }
 
@@ -575,5 +646,210 @@ class Playlist {
 
     public void setSongs(ArrayList<SongInput> songs) {
         this.songs = songs;
+    }
+    public void addSong(SongInput song) {
+        songs.add(song);
+    }
+    public void removeSong(SongInput song) {
+        songs.remove(song);
+    }
+}
+
+class AddRemoveInPlaylist extends Command {
+    private final String username;
+    private final int timestamp;
+    private final String playlistName;
+    private int playlistId;
+    public AddRemoveInPlaylist(String username, int timestamp, String playlistName, int playlistId) {
+        this.username = username;
+        this.timestamp = timestamp;
+        this.playlistName = playlistName;
+        this.playlistId = playlistId;
+    }
+    public void execute(ArrayNode outputs) {
+        ObjectNode playlistObj = new ObjectMapper().createObjectNode();
+        playlistObj.put("command", "addRemoveInPlaylist");
+        playlistObj.put("user", username);
+        playlistObj.put("timestamp", timestamp);
+        for (Playlist playlist : allPlaylists) {
+            if (playlist.getOwner().equals(username) && playlist.getId() == (playlistId)) {
+                if (playlist.getSongs().contains(loadedSong)) {
+                    playlist.removeSong(loadedSong);
+                    playlistObj.put("message", "Successfully removed from playlist.");
+                } else {
+                    playlist.addSong(loadedSong);
+                    playlistObj.put("message", "Successfully added to playlist.");
+                }
+            }
+        }
+        outputs.add(playlistObj);
+    }
+}
+
+class CreatePlaylist extends Command {
+    private final String username;
+    private final int timestamp;
+    private final String playlistName;
+    private int playlistId;
+    public CreatePlaylist(String username, int timestamp, String playlistName, int playlistId) {
+        this.username = username;
+        this.timestamp = timestamp;
+        this.playlistName = playlistName;
+        this.playlistId = playlistId;
+    }
+    public void execute(ArrayNode outputs) {
+        ObjectNode playlistObj = new ObjectMapper().createObjectNode();
+        playlistObj.put("command", "createPlaylist");
+        playlistObj.put("user", username);
+        playlistObj.put("timestamp", timestamp);
+        if (playlistName == null || playlistName.isEmpty()) {
+            playlistObj.put("message", "Please specify a playlist name.");
+        } else {
+            playlistObj.put("message", "Playlist created successfully.");
+            Playlist playlist = new Playlist();
+            playlist.setName(playlistName);
+            playlist.setId(playlistId);
+            playlist.setOwner(username);
+            playlist.setVisibility(Playlist.Visibility.PUBLIC);
+            playlist.setSongs(new ArrayList<>());
+            playlist.setFollowers(0);
+            allPlaylists.add(playlist);
+        }
+        outputs.add(playlistObj);
+    }
+
+}
+class UserLiked {
+    private String username;
+    private ArrayList<SongInput> songs;
+    private ArrayList<PodcastInput> podcasts;
+    public UserLiked() {
+        songs = new ArrayList<>();
+        podcasts = new ArrayList<>();
+    }
+    public String getUsername() {
+        return username;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
+    public UserLiked(String username) {
+        this.username = username;
+        this.songs = new ArrayList<>();
+        this.podcasts = new ArrayList<>();
+    }
+    public void addSong(SongInput song) {
+        songs.add(song);
+    }
+    public void addPodcast(PodcastInput podcast) {
+        podcasts.add(podcast);
+    }
+    public void removeSong(SongInput song) {
+        songs.remove(song);
+    }
+    public void removePodcast(PodcastInput podcast) {
+        podcasts.remove(podcast);
+    }
+    public ArrayList<SongInput> getSongs() {
+        return songs;
+    }
+    public ArrayList<PodcastInput> getPodcasts() {
+        return podcasts;
+    }
+}
+
+class Like extends Command {
+    private final String username;
+    private final SongInput songToLike;
+    private final int timestamp;
+    public Like(String username, SongInput songToLike, int timestamp) {
+        this.username = username;
+        this.songToLike = songToLike;
+        this.timestamp = timestamp;
+    }
+    public void execute(ArrayNode outputs) {
+        ObjectNode likeObj = new ObjectMapper().createObjectNode();
+        likeObj.put("command", "like");
+        likeObj.put("user", username);
+        likeObj.put("timestamp", timestamp);
+        if (songToLike == null) {
+            likeObj.put("message", "Please load a source before liking or unliking.");
+        } else if (lastType == LastType.SONG) {
+            UserLiked userLikeIt = null;
+            for (UserLiked user : userLiked) {
+                if (user.getUsername().equals(username)) {
+                    userLikeIt = user;
+                    break;
+                }
+            }
+            if (userLikeIt == null) {
+                userLiked.add(new UserLiked(username));
+            }
+            if (userLikeIt.getSongs().contains(songToLike)) {
+                likeObj.put("message", "Unlike registered successfully.");
+                userLikeIt.removeSong(songToLike);
+            } else {
+                userLikeIt.addSong(songToLike);
+                likeObj.put("message", "Like registered successfully.");
+            }
+        } else {
+            likeObj.put("message", "Loaded source is not a song.");
+        }
+        outputs.add(likeObj);
+    }
+}
+
+class ShowPlaylist extends Command {
+    private final String username;
+    private final int timestamp;
+    public ShowPlaylist(String username, int timestamp) {
+        this.username = username;
+        this.timestamp = timestamp;
+    }
+    public void execute(ArrayNode outputs) {
+        ObjectNode showPlaylistObj = new ObjectMapper().createObjectNode();
+        showPlaylistObj.put("command", "showPlaylists");
+        showPlaylistObj.put("user", username);
+        showPlaylistObj.put("timestamp", timestamp);
+        ArrayNode playlistArray = showPlaylistObj.putArray("result");
+        for (Playlist playlist : allPlaylists) {
+            if (playlist.getOwner().equals(username) && playlist.getSongs() != null) {
+                ObjectNode playlistObj = playlistArray.addObject();
+                playlistObj.put("name", playlist.getName());
+                ArrayNode songsArray = playlistObj.putArray("songs");
+                for (SongInput song : playlist.getSongs()) {
+                    songsArray.add(song.getName());
+                }
+                playlistObj.put("visibility", playlist.getVisibility().toString().toLowerCase());
+                playlistObj.put("followers", playlist.getFollowers());
+            }
+        }
+        outputs.add(showPlaylistObj);
+    }
+}
+
+class ShowPrefferedSongs extends Command {
+    private final String username;
+    private final int timestamp;
+    public ShowPrefferedSongs(String username, int timestamp) {
+        this.username = username;
+        this.timestamp = timestamp;
+    }
+    public void execute(ArrayNode outputs) {
+        ObjectNode showPrefferedSongsObj = new ObjectMapper().createObjectNode();
+        showPrefferedSongsObj.put("command", "showPreferredSongs");
+        showPrefferedSongsObj.put("user", username);
+        showPrefferedSongsObj.put("timestamp", timestamp);
+        ArrayNode songArray = showPrefferedSongsObj.putArray("result");
+        for (UserLiked user : userLiked) {
+            if (user.getUsername().equals(username)) {
+                for (SongInput song : user.getSongs()) {
+                    songArray.add(song.getName());
+                }
+            }
+        }
+        outputs.add(showPrefferedSongsObj);
     }
 }

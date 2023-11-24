@@ -19,7 +19,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Locale;
+//import java.util.Locale;
 import java.util.Objects;
 
 /**
@@ -82,12 +82,12 @@ public final class Main {
         ArrayNode outputs = objectMapper.createArrayNode();
         // TODO add your implementation
         File file = new File(CheckerConstants.TESTS_PATH + filePathInput);
-        ArrayList<Command> commands = objectMapper.readValue(file, new TypeReference<>(){});
+        ArrayList<Command> commands = objectMapper.readValue(file, new TypeReference<>() { });
         Command.setAllPlaylists(new ArrayList<>());
-        Command.setSearchedPlaylist(new ArrayList<>());
-        Command.setSearchResPodcast(new ArrayList<>());
-        Command.setSearchResSong(new ArrayList<>());
-        Command.setUserLiked(new ArrayList<>());
+//        Command.setSEARCHED_PLAYLIST(new ArrayList<>());
+//        Command.setSEARCH_RES_PODCAST(new ArrayList<>());
+//        Command.setSearchResSong(new ArrayList<>());
+//        Command.setUSER_LIKED(new ArrayList<>());
         Command.setLibrary(library);
         for (Command command: commands) {
             command.execute(outputs);
@@ -107,13 +107,18 @@ class Command {
     private HashMap<String, Object> filters;
     private String playlistName;
     private int playlistId;
+
+    public int getSeed() {
+        return seed;
+    }
+
     protected enum LastType {
         SONG, PLAYLIST, PODCAST
     }
     protected static LastType lastType;
-    protected static ArrayList<SongInput> searchResSong = new ArrayList<>();
-    protected static ArrayList<Playlist> searchedPlaylist = new ArrayList<>();
-    protected static ArrayList<PodcastInput> searchResPodcast = new ArrayList<>();
+    protected static final ArrayList<SongInput> SEARCH_RES_SONG = new ArrayList<>();
+    protected static final ArrayList<Playlist> SEARCHED_PLAYLIST = new ArrayList<>();
+    protected static final ArrayList<PodcastInput> SEARCH_RES_PODCAST = new ArrayList<>();
     protected static SongInput selectedSong = new SongInput();
     protected static PodcastInput selectedPodcast = new PodcastInput();
     protected static Playlist selectedPlaylist = new Playlist();
@@ -121,6 +126,7 @@ class Command {
     protected static EpisodeInput loadedEpisode = new EpisodeInput();
     protected static PodcastInput loadedPodcast = new PodcastInput();
     protected static Playlist loadedPlaylist = new Playlist();
+    protected static boolean searchNull = false;
     protected static int originalDuration = 0;
     protected static boolean paused = true;
     protected static boolean shuffle = false;
@@ -130,44 +136,44 @@ class Command {
     protected static String lastCommand = "";
     protected static ArrayList<Playlist> allPlaylists = new ArrayList<>();
 
-    public static void setSearchResSong(ArrayList<SongInput> searchResSong) {
-        Command.searchResSong = searchResSong;
-    }
+//    public static void setSearchResSong(ArrayList<SongInput> searchResSong) {
+//        Command.searchResSong = searchResSong;
+//    }
 
-    public static void setSearchedPlaylist(ArrayList<Playlist> searchedPlaylist) {
-        Command.searchedPlaylist = searchedPlaylist;
-    }
+//    public static void setSEARCHED_PLAYLIST(ArrayList<Playlist> SEARCHED_PLAYLIST) {
+//        Command.SEARCHED_PLAYLIST = SEARCHED_PLAYLIST;
+//    }
 
-    public static void setSearchResPodcast(ArrayList<PodcastInput> searchResPodcast) {
-        Command.searchResPodcast = searchResPodcast;
-    }
+//    public static void setSEARCH_RES_PODCAST(ArrayList<PodcastInput> SEARCH_RES_PODCAST) {
+//        Command.SEARCH_RES_PODCAST = SEARCH_RES_PODCAST;
+//    }
 
-    public static void setUserLiked(ArrayList<UserLiked> userLiked) {
-        Command.userLiked = userLiked;
-    }
+//    public static void setUSER_LIKED(ArrayList<USER_LIKED> USER_LIKED) {
+//        Command.USER_LIKED = USER_LIKED;
+//    }
 
     public static void setAllPlaylists(ArrayList<Playlist> allPlaylists) {
         Command.allPlaylists = allPlaylists;
     }
 
-    private int seed;
-    protected static ArrayList<UserLiked> userLiked = new ArrayList<>();
+    private final int seed = 0;
+    protected static final ArrayList<USER_LIKED> USER_LIKED = new ArrayList<>();
 
-    public int getSeed() {
+    public int seed() {
         return seed;
     }
-
-    public void setSeed(int seed) {
-        this.seed = seed;
-    }
+//
+//    public void setSeed(int seed) {
+//        this.seed = seed;
+//    }
 
     public String getPlaylistName() {
         return playlistName;
     }
 
-    public void setPlaylistName(String playlistName) {
-        this.playlistName = playlistName;
-    }
+//    public void setPlaylistName(String playlistName) {
+//        this.playlistName = playlistName;
+//    }
 
     public int getPlaylistId() {
         return playlistId;
@@ -229,10 +235,6 @@ class Command {
         Command.library = library;
     }
     public void execute(ArrayNode outputs) {
-
-        if (command == null || command.isEmpty()) {
-            outputs.add("Invalid command");
-        }
         if (!paused) {
             if (lastType == LastType.SONG && loadedSong != null) {
                 loadedSong.setDuration(loadedSong.getDuration() - (timestamp - currentTimestamp));
@@ -240,32 +242,51 @@ class Command {
                     loadedSong.setName("");
                     loadedSong.setDuration(0);
                     paused = true;
-                } else if (loadedSong.getDuration() <= 0 && playlist && loadedPlaylist.getSongs().indexOf(loadedSong) < loadedPlaylist.getSongs().size() - 1) {
+                } else if (loadedSong.getDuration() <= 0 && playlist
+                        && loadedPlaylist.getSongs().indexOf(loadedSong)
+                        < loadedPlaylist.getSongs().size() - 1) {
                     int duration = loadedSong.getDuration();
-                    loadedSong = loadedPlaylist.getSongs().get(loadedPlaylist.getSongs().indexOf(loadedSong) + 1);
+                    loadedSong =
+                            loadedPlaylist.getSongs().get(loadedPlaylist.getSongs()
+                                    .indexOf(loadedSong) + 1);
                     loadedSong.setDuration(loadedSong.getDuration() + duration);
                 }
-            } else if (lastType == LastType.PODCAST && loadedEpisode != null && loadedEpisode.getDuration() != null) {
-                loadedEpisode.setDuration(loadedEpisode.getDuration() - (timestamp - currentTimestamp));
-                if (loadedEpisode.getDuration() <= 0 && loadedPodcast.getEpisodes().indexOf(loadedEpisode) == loadedPodcast.getEpisodes().size() - 1 && !playlist && repeat.equals("No Repeat")) {
+            } else if (lastType == LastType.PODCAST && loadedEpisode != null
+                    && loadedEpisode.getDuration() != null) {
+                loadedEpisode.setDuration(loadedEpisode.getDuration()
+                        - (timestamp - currentTimestamp));
+                if (loadedEpisode.getDuration() <= 0 && loadedPodcast.getEpisodes()
+                        .indexOf(loadedEpisode)
+                        == loadedPodcast.getEpisodes().size() - 1
+                        && !playlist && repeat.equals("No Repeat")) {
                     loadedEpisode.setName("");
                     loadedEpisode.setDuration(0);
                     paused = true;
-                } else if (loadedEpisode.getDuration() <= 0 && loadedPodcast.getEpisodes().indexOf(loadedEpisode) != loadedPodcast.getEpisodes().size() - 1) {
+                } else if (loadedEpisode.getDuration() <= 0 && loadedPodcast.getEpisodes()
+                        .indexOf(loadedEpisode)
+                        != loadedPodcast.getEpisodes().size() - 1) {
                     int duration = loadedEpisode.getDuration();
-                    loadedEpisode = loadedPodcast.getEpisodes().get(loadedPodcast.getEpisodes().indexOf(loadedEpisode) + 1);
+                    loadedEpisode =
+                            loadedPodcast.getEpisodes().get(loadedPodcast.getEpisodes()
+                                    .indexOf(loadedEpisode) + 1);
                     loadedEpisode.setDuration(loadedEpisode.getDuration() + duration);
                 }
             } else if (lastType == LastType.PLAYLIST && loadedSong != null) {
-//                System.out.println(loadedSong.getDuration() + " " + timestamp + " " + currentTimestamp);
-                loadedSong.setDuration(loadedSong.getDuration() - (timestamp - currentTimestamp));
-                if (loadedSong.getDuration() <= 0 && repeat.equals("No Repeat") && loadedPlaylist.getSongs().indexOf(loadedSong) == loadedPlaylist.getSongs().size() - 1) {
+                loadedSong.setDuration(loadedSong.getDuration()
+                        - (timestamp - currentTimestamp));
+                if (loadedSong.getDuration() <= 0
+                        && repeat.equals("No Repeat") && loadedPlaylist.getSongs().
+                        indexOf(loadedSong) == loadedPlaylist.getSongs().size() - 1) {
                     loadedSong.setName("");
                     loadedSong.setDuration(0);
                     paused = true;
-                } else if (loadedSong.getDuration() <= 0 && playlist && loadedPlaylist.getSongs().indexOf(loadedSong) < loadedPlaylist.getSongs().size() - 1) {
+                } else if (loadedSong.getDuration() <= 0 && playlist
+                        && loadedPlaylist.getSongs().indexOf(loadedSong)
+                        < loadedPlaylist.getSongs().size() - 1) {
                     int duration = loadedSong.getDuration();
-                    loadedSong = loadedPlaylist.getSongs().get(loadedPlaylist.getSongs().indexOf(loadedSong) + 1);
+                    loadedSong =
+                            loadedPlaylist.getSongs().get(loadedPlaylist.getSongs()
+                                    .indexOf(loadedSong) + 1);
                     loadedSong.setDuration(loadedSong.getDuration() + duration);
                 }
             }
@@ -329,15 +350,15 @@ class Command {
             }
         }
         if (command.equals("like")) {
-            UserLiked userLikeIt = null;
-            for (UserLiked user : userLiked) {
+            USER_LIKED userLikeIt = null;
+            for (USER_LIKED user : USER_LIKED) {
                 if (user.getUsername().equals(username)) {
                     userLikeIt = user;
                     break;
                 }
             }
             if (userLikeIt == null) {
-                userLiked.add(new UserLiked(username));
+                USER_LIKED.add(new USER_LIKED(username));
             }
             Like like = new Like(username, loadedSong, timestamp);
             like.execute(outputs);
@@ -375,11 +396,14 @@ class Search extends Command {
         if (loadedSong != null) {
             loadedSong.setDuration(originalDuration);
         }
-        loadedSong = null;
+//        if (paused) {
+            loadedSong = null;
+//        }
 //        if (loadedEpisode != null) {
 //            loadedEpisode.setDuration(originalDuration);
 //        }
         loadedEpisode = null;
+        searchNull = true;
         switch (type) {
             case "song" -> {
                 ArrayList<SongInput> songs = new ArrayList<>(library.getSongs());
@@ -428,8 +452,8 @@ class Search extends Command {
                         }
                         outputs.add(searchObj);
                     }
-                    searchResSong.clear();
-                    searchResSong.addAll(songs);
+                    SEARCH_RES_SONG.clear();
+                    SEARCH_RES_SONG.addAll(songs);
                     Command.lastType = LastType.SONG;
                 }
             }
@@ -454,8 +478,8 @@ class Search extends Command {
                     }
                     outputs.add(searchObj);
                 }
-                searchedPlaylist.clear();
-                searchedPlaylist.addAll(playlists);
+                SEARCHED_PLAYLIST.clear();
+                SEARCHED_PLAYLIST.addAll(playlists);
                 Command.lastType = LastType.PLAYLIST;
             }
             case "podcast" -> {
@@ -479,8 +503,8 @@ class Search extends Command {
                     }
                     outputs.add(searchObj);
                 }
-                searchResPodcast.clear();
-                searchResPodcast.addAll(podcasts);
+                SEARCH_RES_PODCAST.clear();
+                SEARCH_RES_PODCAST.addAll(podcasts);
                 Command.lastType = LastType.PODCAST;
             }
         }
@@ -502,22 +526,22 @@ class Select extends Command {
         selectObj.put("user", username);
         selectObj.put("timestamp", timestamp);
         if (lastType == LastType.SONG) {
-            if (itemNumber - 1 >= searchResSong.size()) {
+            if (itemNumber - 1 >= SEARCH_RES_SONG.size()) {
                 selectObj.put("message", "The selected ID is too high.");
-            } else if (searchResSong.isEmpty()) {
+            } else if (SEARCH_RES_SONG.isEmpty()) {
                 selectObj.put("message", "Please conduct a search before making a selection.");
             } else {
                 if (loadedSong != null) {
                     loadedSong.setDuration(originalDuration);
                     //outputs.add("name: " + loadedSong.getName() + " original duration: " + loadedSong.getDuration());
                 }
-                selectObj.put("message", "Successfully selected " + searchResSong.get(itemNumber - 1).getName() + ".");
-                selectedSong = searchResSong.get(itemNumber - 1);
+                selectObj.put("message", "Successfully selected " + SEARCH_RES_SONG.get(itemNumber - 1).getName() + ".");
+                selectedSong = SEARCH_RES_SONG.get(itemNumber - 1);
                 originalDuration = selectedSong.getDuration();
             }
             outputs.add(selectObj);
         } else if (lastType == LastType.PODCAST) {
-            if (itemNumber - 1 >= searchResPodcast.size()) {
+            if (itemNumber - 1 >= SEARCH_RES_PODCAST.size()) {
                 selectObj.put("message", "The selected ID is too high.");
             } else if (selectedPodcast == null) {
                 selectObj.put("message", "Please conduct a search before making a selection.");
@@ -525,23 +549,23 @@ class Select extends Command {
                 if (loadedEpisode != null) {
                     loadedEpisode.setDuration(originalDuration);
                 }
-                selectObj.put("message", "Successfully selected " + searchResPodcast.get(itemNumber - 1).getName() + ".");
-                selectedPodcast = searchResPodcast.get(itemNumber - 1);
+                selectObj.put("message", "Successfully selected " + SEARCH_RES_PODCAST.get(itemNumber - 1).getName() + ".");
+                selectedPodcast = SEARCH_RES_PODCAST.get(itemNumber - 1);
                 originalDuration = selectedPodcast.getEpisodes().get(0).getDuration();
             }
             outputs.add(selectObj);
         } else if (lastType == LastType.PLAYLIST) {
-            if (itemNumber - 1 >= searchedPlaylist.size()) {
+            if (itemNumber - 1 >= SEARCHED_PLAYLIST.size()) {
                 selectObj.put("message", "The selected ID is too high.");
-            } else if (searchedPlaylist.isEmpty()) {
+            } else if (SEARCHED_PLAYLIST.isEmpty()) {
                 selectObj.put("message", "Please conduct a search before making a selection.");
             } else {
                 if (loadedSong != null) {
                     loadedSong.setDuration(originalDuration);
                     //outputs.add("name: " + loadedSong.getName() + " original duration: " + loadedSong.getDuration());
                 }
-                selectObj.put("message", "Successfully selected " + searchedPlaylist.get(itemNumber - 1).getName() + ".");
-                selectedPlaylist = searchedPlaylist.get(itemNumber - 1);
+                selectObj.put("message", "Successfully selected " + SEARCHED_PLAYLIST.get(itemNumber - 1).getName() + ".");
+                selectedPlaylist = SEARCHED_PLAYLIST.get(itemNumber - 1);
                 originalDuration = selectedPlaylist.getSongs().get(0).getDuration();
             }
             outputs.add(selectObj);
@@ -642,8 +666,15 @@ class Status extends Command {
         statusObj.put("user", username);
         statusObj.put("timestamp", timestamp);
         if (lastType == LastType.SONG) {
-            if (loadedSong == null) {
+            if (loadedSong == null && !paused && !searchNull) {
                 statusObj.put("message", "No song is currently playing.");
+            } else if (loadedSong == null) {
+                ObjectNode stats = statusObj.putObject("stats");
+                stats.put("name", "");
+                stats.put("remainedTime", 0);
+                stats.put("repeat", repeat);
+                stats.put("shuffle", shuffle);
+                stats.put("paused", !paused);
             } else {
                 ObjectNode stats = statusObj.putObject("stats");
                 stats.put("name", loadedSong.getName());
@@ -830,7 +861,7 @@ class AddRemoveInPlaylist extends Command {
                             playlist.removeSong(loadedSong);
                             playlistObj.put("message", "Successfully removed from playlist.");
                         } else {
-                            loadedSong.setDuration(originalDuration);
+                            //loadedSong.setDuration(originalDuration);
                             playlist.addSong(loadedSong);
                             playlistObj.put("message", "Successfully added to playlist.");
                         }
@@ -884,11 +915,11 @@ class CreatePlaylist extends Command {
     }
 
 }
-class UserLiked {
+class USER_LIKED {
     private String username;
     private ArrayList<SongInput> songs;
     private ArrayList<PodcastInput> podcasts;
-    public UserLiked() {
+    public USER_LIKED() {
         songs = new ArrayList<>();
         podcasts = new ArrayList<>();
     }
@@ -900,7 +931,7 @@ class UserLiked {
         this.username = username;
     }
 
-    public UserLiked(String username) {
+    public USER_LIKED(String username) {
         this.username = username;
         this.songs = new ArrayList<>();
         this.podcasts = new ArrayList<>();
@@ -942,15 +973,15 @@ class Like extends Command {
         if (songToLike == null) {
             likeObj.put("message", "Please load a source before liking or unliking.");
         } else if (lastType == LastType.SONG || loadedSong != null) {
-            UserLiked userLikeIt = null;
-            for (UserLiked user : userLiked) {
+            USER_LIKED userLikeIt = null;
+            for (USER_LIKED user : USER_LIKED) {
                 if (user.getUsername().equals(username)) {
                     userLikeIt = user;
                     break;
                 }
             }
             if (userLikeIt == null) {
-                userLiked.add(new UserLiked(username));
+                USER_LIKED.add(new USER_LIKED(username));
             }
             if (userLikeIt.getSongs().contains(songToLike)) {
                 likeObj.put("message", "Unlike registered successfully.");
@@ -1008,7 +1039,7 @@ class ShowPrefferedSongs extends Command {
         showPrefferedSongsObj.put("user", username);
         showPrefferedSongsObj.put("timestamp", timestamp);
         ArrayNode songArray = showPrefferedSongsObj.putArray("result");
-        for (UserLiked user : userLiked) {
+        for (USER_LIKED user : USER_LIKED) {
             if (user.getUsername().equals(username)) {
                 for (SongInput song : user.getSongs()) {
                     songArray.add(song.getName());

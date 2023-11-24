@@ -288,7 +288,7 @@ class Command {
 class Search extends Command {
     private final String username;
     private final int timestamp;
-    private final String type;
+    private final String type;//
     private final HashMap<String, Object> filters;
 
     public Search(String username, int timestamp, String type, HashMap<String, Object> filters) {

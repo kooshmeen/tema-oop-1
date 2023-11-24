@@ -302,6 +302,7 @@ class Search extends Command {
         searchObj.put("command", "search");
         searchObj.put("user", username);
         searchObj.put("timestamp", timestamp);
+        loadedSong = null;
         switch (type) {
             case "song" -> {
                 ArrayList<SongInput> songs = new ArrayList<>(library.getSongs());
@@ -490,6 +491,18 @@ class Load extends Command {
                 currentTimestamp = timestamp;
                 playlist = false;
             }
+        } else if (lastType == LastType.PLAYLIST) {
+            if (selectedPlaylist == null) {
+                loadObj.put("message", "Please select a source before attempting to load.");
+            } else if (!selectedPlaylist.getSongs().isEmpty()) {
+                loadObj.put("message", "Playback loaded successfully.");
+                loadedSong = selectedPlaylist.getSongs().get(0);
+                paused = false;
+                currentTimestamp = timestamp;
+                playlist = true;
+            } else {
+                loadObj.put("message", "Playlist is empty.");
+            }
         } else {
             loadObj.put("message", "No results found");
         }
@@ -673,12 +686,20 @@ class AddRemoveInPlaylist extends Command {
         playlistObj.put("timestamp", timestamp);
         for (Playlist playlist : allPlaylists) {
             if (playlist.getOwner().equals(username) && playlist.getId() == (playlistId)) {
-                if (playlist.getSongs().contains(loadedSong)) {
-                    playlist.removeSong(loadedSong);
-                    playlistObj.put("message", "Successfully removed from playlist.");
+                if (Command.lastType == LastType.SONG) {
+                    if (loadedSong == null) {
+                        playlistObj.put("message", "Please load a source before adding to or removing from the playlist.");
+                    } else {
+                        if (playlist.getSongs().contains(loadedSong)) {
+                            playlist.removeSong(loadedSong);
+                            playlistObj.put("message", "Successfully removed from playlist.");
+                        } else {
+                            playlist.addSong(loadedSong);
+                            playlistObj.put("message", "Successfully added to playlist.");
+                        }
+                    }
                 } else {
-                    playlist.addSong(loadedSong);
-                    playlistObj.put("message", "Successfully added to playlist.");
+                    playlistObj.put("message", "The loaded source is not a song.");
                 }
             }
         }
@@ -705,6 +726,13 @@ class CreatePlaylist extends Command {
         if (playlistName == null || playlistName.isEmpty()) {
             playlistObj.put("message", "Please specify a playlist name.");
         } else {
+            for (Playlist playlist : allPlaylists) {
+                if (playlist.getOwner().equals(username) && playlist.getName().equals(playlistName)) {
+                    playlistObj.put("message", "A playlist with the same name already exists.");
+                    outputs.add(playlistObj);
+                    return;
+                }
+            }
             playlistObj.put("message", "Playlist created successfully.");
             Playlist playlist = new Playlist();
             playlist.setName(playlistName);
@@ -776,7 +804,7 @@ class Like extends Command {
         likeObj.put("timestamp", timestamp);
         if (songToLike == null) {
             likeObj.put("message", "Please load a source before liking or unliking.");
-        } else if (lastType == LastType.SONG) {
+        } else if (lastType == LastType.SONG || loadedSong != null) {
             UserLiked userLikeIt = null;
             for (UserLiked user : userLiked) {
                 if (user.getUsername().equals(username)) {

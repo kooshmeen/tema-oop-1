@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import fileio.input.EpisodeInput;
 import fileio.input.LibraryInput;
 import fileio.input.PodcastInput;
 import fileio.input.SongInput;
@@ -82,6 +83,7 @@ public final class Main {
         // TODO add your implementation
         File file = new File(CheckerConstants.TESTS_PATH + filePathInput);
         ArrayList<Command> commands = objectMapper.readValue(file, new TypeReference<>(){});
+        Command.setAllPlaylists(new ArrayList<>());
         Command.setLibrary(library);
         for (Command command: commands) {
             command.execute(outputs);
@@ -112,13 +114,21 @@ class Command {
     protected static PodcastInput selectedPodcast = new PodcastInput();
     protected static Playlist selectedPlaylist = new Playlist();
     protected static SongInput loadedSong = new SongInput();
+    protected static EpisodeInput loadedEpisode = new EpisodeInput();
     protected static PodcastInput loadedPodcast = new PodcastInput();
+    protected static Playlist loadedPlaylist = new Playlist();
+    protected static int originalDuration = 0;
     protected static boolean paused = true;
     protected static boolean shuffle = false;
     protected static int currentTimestamp = 0;
     protected static String repeat = "No Repeat";
     protected static boolean playlist = false;
     protected static ArrayList<Playlist> allPlaylists = new ArrayList<>();
+
+    public static void setAllPlaylists(ArrayList<Playlist> allPlaylists) {
+        Command.allPlaylists = allPlaylists;
+    }
+
     private int seed;
     protected static ArrayList<UserLiked> userLiked = new ArrayList<>();
 
@@ -198,19 +208,48 @@ class Command {
         Command.library = library;
     }
     public void execute(ArrayNode outputs) {
+
         if (command == null || command.isEmpty()) {
             outputs.add("Invalid command");
         }
         if (!paused) {
             if (lastType == LastType.SONG && loadedSong != null) {
                 loadedSong.setDuration(loadedSong.getDuration() - (timestamp - currentTimestamp));
-                if (loadedSong.getDuration() <= 0) {
+                if (loadedSong.getDuration() <= 0 && !playlist && repeat.equals("No Repeat")) {
                     loadedSong.setName("");
                     loadedSong.setDuration(0);
                     paused = true;
+                } else if (loadedSong.getDuration() <= 0 && playlist && loadedPlaylist.getSongs().indexOf(loadedSong) < loadedPlaylist.getSongs().size() - 1) {
+                    int duration = loadedSong.getDuration();
+                    loadedSong = loadedPlaylist.getSongs().get(loadedPlaylist.getSongs().indexOf(loadedSong) + 1);
+                    loadedSong.setDuration(loadedSong.getDuration() + duration);
+                }
+            } else if (lastType == LastType.PODCAST && loadedEpisode != null && loadedEpisode.getDuration() != null) {
+                loadedEpisode.setDuration(loadedEpisode.getDuration() - (timestamp - currentTimestamp));
+                if (loadedEpisode.getDuration() <= 0 && loadedPodcast.getEpisodes().indexOf(loadedEpisode) == loadedPodcast.getEpisodes().size() - 1 && !playlist && repeat.equals("No Repeat")) {
+                    loadedEpisode.setName("");
+                    loadedEpisode.setDuration(0);
+                    paused = true;
+                } else if (loadedEpisode.getDuration() <= 0 && loadedPodcast.getEpisodes().indexOf(loadedEpisode) != loadedPodcast.getEpisodes().size() - 1) {
+                    int duration = loadedEpisode.getDuration();
+                    loadedEpisode = loadedPodcast.getEpisodes().get(loadedPodcast.getEpisodes().indexOf(loadedEpisode) + 1);
+                    loadedEpisode.setDuration(loadedEpisode.getDuration() + duration);
+                }
+            } else if (lastType == LastType.PLAYLIST && loadedSong != null) {
+//                System.out.println(loadedSong.getDuration() + " " + timestamp + " " + currentTimestamp);
+                loadedSong.setDuration(loadedSong.getDuration() - (timestamp - currentTimestamp));
+                if (loadedSong.getDuration() <= 0 && repeat.equals("No Repeat") && loadedPlaylist.getSongs().indexOf(loadedSong) == loadedPlaylist.getSongs().size() - 1) {
+                    loadedSong.setName("");
+                    loadedSong.setDuration(0);
+                    paused = true;
+                } else if (loadedSong.getDuration() <= 0 && playlist && loadedPlaylist.getSongs().indexOf(loadedSong) < loadedPlaylist.getSongs().size() - 1) {
+                    int duration = loadedSong.getDuration();
+                    loadedSong = loadedPlaylist.getSongs().get(loadedPlaylist.getSongs().indexOf(loadedSong) + 1);
+                    loadedSong.setDuration(loadedSong.getDuration() + duration);
                 }
             }
         }
+        currentTimestamp = timestamp;
         if (command.equals("search")) {
             Search search = new Search(username, timestamp, type, filters);
             search.executeSearch(outputs);
@@ -220,6 +259,15 @@ class Command {
             select.execute(outputs);
         }
         if (command.equals("load")) {
+//            if (lastType == LastType.SONG || lastType == LastType.PLAYLIST) {
+//                if (loadedSong != null) {
+//                    loadedSong.setDuration(originalDuration);
+//                }
+//            } else if (lastType == LastType.PODCAST) {
+//                if (loadedEpisode != null) {
+//                    loadedEpisode.setDuration(originalDuration);
+//                }
+//            }
             Load load = new Load(username, timestamp);
             load.execute(outputs);
         }
@@ -303,6 +351,7 @@ class Search extends Command {
         searchObj.put("user", username);
         searchObj.put("timestamp", timestamp);
         loadedSong = null;
+        paused = true;
         switch (type) {
             case "song" -> {
                 ArrayList<SongInput> songs = new ArrayList<>(library.getSongs());
@@ -419,6 +468,7 @@ class Select extends Command {
         this.itemNumber = itemNumber;
     }
     public void execute(ArrayNode outputs) {
+        paused = true;
         ObjectNode selectObj = new ObjectMapper().createObjectNode();
         selectObj.put("command", "select");
         selectObj.put("user", username);
@@ -431,6 +481,7 @@ class Select extends Command {
             } else {
                 selectObj.put("message", "Successfully selected " + searchResSong.get(itemNumber - 1).getName() + ".");
                 selectedSong = searchResSong.get(itemNumber - 1);
+                originalDuration = selectedSong.getDuration();
             }
             outputs.add(selectObj);
         } else if (lastType == LastType.PODCAST) {
@@ -441,6 +492,7 @@ class Select extends Command {
             } else {
                 selectObj.put("message", "Successfully selected " + searchResPodcast.get(itemNumber - 1).getName() + ".");
                 selectedPodcast = searchResPodcast.get(itemNumber - 1);
+                originalDuration = selectedPodcast.getEpisodes().get(0).getDuration();
             }
             outputs.add(selectObj);
         } else if (lastType == LastType.PLAYLIST) {
@@ -451,6 +503,7 @@ class Select extends Command {
             } else {
                 selectObj.put("message", "Successfully selected " + searchedPlaylist.get(itemNumber - 1).getName() + ".");
                 selectedPlaylist = searchedPlaylist.get(itemNumber - 1);
+                //originalDuration = selectedPlaylist.getSongs().get(0).getDuration();
             }
             outputs.add(selectObj);
         } else {
@@ -475,31 +528,37 @@ class Load extends Command {
             if (selectedSong == null) {
                 loadObj.put("message", "Please select a source before attempting to load.");
             } else {
+                //originalDuration = selectedSong.getDuration();
                 loadObj.put("message", "Playback loaded successfully.");
                 loadedSong = selectedSong;
                 paused = false;
-                currentTimestamp = timestamp;
+                //currentTimestamp = timestamp;
                 playlist = false;
             }
         } else if (lastType == LastType.PODCAST) {
             if (selectedPodcast == null) {
                 loadObj.put("message", "Please select a source before attempting to load.");
             } else {
+                //originalDuration = selectedPodcast.getEpisodes().get(0).getDuration();
                 loadObj.put("message", "Playback loaded successfully.");
                 loadedPodcast = selectedPodcast;
+                loadedEpisode = loadedPodcast.getEpisodes().get(0);
                 paused = false;
-                currentTimestamp = timestamp;
+                //currentTimestamp = timestamp;
                 playlist = false;
             }
         } else if (lastType == LastType.PLAYLIST) {
             if (selectedPlaylist == null) {
                 loadObj.put("message", "Please select a source before attempting to load.");
             } else if (!selectedPlaylist.getSongs().isEmpty()) {
+                //originalDuration = selectedPlaylist.getSongs().get(0).getDuration();
                 loadObj.put("message", "Playback loaded successfully.");
                 loadedSong = selectedPlaylist.getSongs().get(0);
+                //System.out.println("load: " + loadedSong.getName() + "  " + loadedSong.getDuration());
                 paused = false;
-                currentTimestamp = timestamp;
+                //currentTimestamp = timestamp;
                 playlist = true;
+                loadedPlaylist = selectedPlaylist;
             } else {
                 loadObj.put("message", "Playlist is empty.");
             }
@@ -537,7 +596,23 @@ class Status extends Command {
             if (loadedPodcast == null) {
                 statusObj.put("message", "No podcast is currently playing.");
             } else {
-                statusObj.put("message", "Podcast is currently playing.");
+                ObjectNode stats = statusObj.putObject("stats");
+                stats.put("name", loadedEpisode.getName());
+                stats.put("remainedTime", loadedEpisode.getDuration());
+                stats.put("repeat", repeat);
+                stats.put("shuffle", shuffle);
+                stats.put("paused", paused);
+            }
+        } else if (lastType == LastType.PLAYLIST) {
+            if (loadedSong == null) {
+                statusObj.put("message", "No song is currently playing.");
+            } else {
+                ObjectNode stats = statusObj.putObject("stats");
+                stats.put("name", loadedSong.getName());
+                stats.put("remainedTime", loadedSong.getDuration());
+                stats.put("repeat", repeat);
+                stats.put("shuffle", shuffle);
+                stats.put("paused", paused);
             }
         } else {
             statusObj.put("message", "No results found");
@@ -684,6 +759,7 @@ class AddRemoveInPlaylist extends Command {
         playlistObj.put("command", "addRemoveInPlaylist");
         playlistObj.put("user", username);
         playlistObj.put("timestamp", timestamp);
+        paused = true;
         for (Playlist playlist : allPlaylists) {
             if (playlist.getOwner().equals(username) && playlist.getId() == (playlistId)) {
                 if (Command.lastType == LastType.SONG) {
@@ -691,9 +767,11 @@ class AddRemoveInPlaylist extends Command {
                         playlistObj.put("message", "Please load a source before adding to or removing from the playlist.");
                     } else {
                         if (playlist.getSongs().contains(loadedSong)) {
+                            loadedSong.setDuration(originalDuration);
                             playlist.removeSong(loadedSong);
                             playlistObj.put("message", "Successfully removed from playlist.");
                         } else {
+                            loadedSong.setDuration(originalDuration);
                             playlist.addSong(loadedSong);
                             playlistObj.put("message", "Successfully added to playlist.");
                         }

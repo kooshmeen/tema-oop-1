@@ -84,6 +84,10 @@ public final class Main {
         File file = new File(CheckerConstants.TESTS_PATH + filePathInput);
         ArrayList<Command> commands = objectMapper.readValue(file, new TypeReference<>(){});
         Command.setAllPlaylists(new ArrayList<>());
+        Command.setSearchedPlaylist(new ArrayList<>());
+        Command.setSearchResPodcast(new ArrayList<>());
+        Command.setSearchResSong(new ArrayList<>());
+        Command.setUserLiked(new ArrayList<>());
         Command.setLibrary(library);
         for (Command command: commands) {
             command.execute(outputs);
@@ -123,7 +127,24 @@ class Command {
     protected static int currentTimestamp = 0;
     protected static String repeat = "No Repeat";
     protected static boolean playlist = false;
+    protected static String lastCommand = "";
     protected static ArrayList<Playlist> allPlaylists = new ArrayList<>();
+
+    public static void setSearchResSong(ArrayList<SongInput> searchResSong) {
+        Command.searchResSong = searchResSong;
+    }
+
+    public static void setSearchedPlaylist(ArrayList<Playlist> searchedPlaylist) {
+        Command.searchedPlaylist = searchedPlaylist;
+    }
+
+    public static void setSearchResPodcast(ArrayList<PodcastInput> searchResPodcast) {
+        Command.searchResPodcast = searchResPodcast;
+    }
+
+    public static void setUserLiked(ArrayList<UserLiked> userLiked) {
+        Command.userLiked = userLiked;
+    }
 
     public static void setAllPlaylists(ArrayList<Playlist> allPlaylists) {
         Command.allPlaylists = allPlaylists;
@@ -330,6 +351,7 @@ class Command {
             showPrefferedSongs.execute(outputs);
         }
         currentTimestamp = timestamp;
+        lastCommand = command;
     }
 }
 
@@ -350,8 +372,14 @@ class Search extends Command {
         searchObj.put("command", "search");
         searchObj.put("user", username);
         searchObj.put("timestamp", timestamp);
+        if (loadedSong != null) {
+            loadedSong.setDuration(originalDuration);
+        }
         loadedSong = null;
-        paused = true;
+//        if (loadedEpisode != null) {
+//            loadedEpisode.setDuration(originalDuration);
+//        }
+        loadedEpisode = null;
         switch (type) {
             case "song" -> {
                 ArrayList<SongInput> songs = new ArrayList<>(library.getSongs());
@@ -372,7 +400,8 @@ class Search extends Command {
                         songs.removeIf(song -> !song.getTags().containsAll(tags));
                     }
                     if (filters.containsKey("lyrics")) {
-                        songs.removeIf(song -> !song.getLyrics().contains((CharSequence) filters.get("lyrics")));
+                        String lyrics = ((String) filters.get("lyrics")).toLowerCase();
+                        songs.removeIf(song -> !song.getLyrics().toLowerCase().contains(lyrics));
                     }
                     if (filters.containsKey("releaseYear")) {
                         char operator = ((String) filters.get("releaseYear")).charAt(0);
@@ -468,7 +497,6 @@ class Select extends Command {
         this.itemNumber = itemNumber;
     }
     public void execute(ArrayNode outputs) {
-        paused = true;
         ObjectNode selectObj = new ObjectMapper().createObjectNode();
         selectObj.put("command", "select");
         selectObj.put("user", username);
@@ -479,6 +507,10 @@ class Select extends Command {
             } else if (searchResSong.isEmpty()) {
                 selectObj.put("message", "Please conduct a search before making a selection.");
             } else {
+                if (loadedSong != null) {
+                    loadedSong.setDuration(originalDuration);
+                    //outputs.add("name: " + loadedSong.getName() + " original duration: " + loadedSong.getDuration());
+                }
                 selectObj.put("message", "Successfully selected " + searchResSong.get(itemNumber - 1).getName() + ".");
                 selectedSong = searchResSong.get(itemNumber - 1);
                 originalDuration = selectedSong.getDuration();
@@ -490,6 +522,9 @@ class Select extends Command {
             } else if (selectedPodcast == null) {
                 selectObj.put("message", "Please conduct a search before making a selection.");
             } else {
+                if (loadedEpisode != null) {
+                    loadedEpisode.setDuration(originalDuration);
+                }
                 selectObj.put("message", "Successfully selected " + searchResPodcast.get(itemNumber - 1).getName() + ".");
                 selectedPodcast = searchResPodcast.get(itemNumber - 1);
                 originalDuration = selectedPodcast.getEpisodes().get(0).getDuration();
@@ -501,9 +536,13 @@ class Select extends Command {
             } else if (searchedPlaylist.isEmpty()) {
                 selectObj.put("message", "Please conduct a search before making a selection.");
             } else {
+                if (loadedSong != null) {
+                    loadedSong.setDuration(originalDuration);
+                    //outputs.add("name: " + loadedSong.getName() + " original duration: " + loadedSong.getDuration());
+                }
                 selectObj.put("message", "Successfully selected " + searchedPlaylist.get(itemNumber - 1).getName() + ".");
                 selectedPlaylist = searchedPlaylist.get(itemNumber - 1);
-                //originalDuration = selectedPlaylist.getSongs().get(0).getDuration();
+                originalDuration = selectedPlaylist.getSongs().get(0).getDuration();
             }
             outputs.add(selectObj);
         } else {
@@ -524,13 +563,23 @@ class Load extends Command {
         loadObj.put("command", "load");
         loadObj.put("user", username);
         loadObj.put("timestamp", timestamp);
+        if (!lastCommand.equals("select")) {
+            loadObj.put("message", "Please select a source before attempting to load.");
+            outputs.add(loadObj);
+            return;
+        }
         if (lastType == LastType.SONG) {
             if (selectedSong == null) {
                 loadObj.put("message", "Please select a source before attempting to load.");
             } else {
+//                if (loadedSong != null) {
+//                    loadedSong.setDuration(originalDuration);
+//                }
                 //originalDuration = selectedSong.getDuration();
                 loadObj.put("message", "Playback loaded successfully.");
                 loadedSong = selectedSong;
+                loadedSong.setDuration(originalDuration);
+                //originalDuration = selectedSong.getDuration();
                 paused = false;
                 //currentTimestamp = timestamp;
                 playlist = false;
@@ -540,9 +589,14 @@ class Load extends Command {
                 loadObj.put("message", "Please select a source before attempting to load.");
             } else {
                 //originalDuration = selectedPodcast.getEpisodes().get(0).getDuration();
+//                if (loadedEpisode != null) {
+//                    loadedEpisode.setDuration(originalDuration);
+//                }
                 loadObj.put("message", "Playback loaded successfully.");
                 loadedPodcast = selectedPodcast;
                 loadedEpisode = loadedPodcast.getEpisodes().get(0);
+                loadedEpisode.setDuration(originalDuration);
+                //originalDuration = selectedPodcast.getEpisodes().get(0).getDuration();
                 paused = false;
                 //currentTimestamp = timestamp;
                 playlist = false;
@@ -551,10 +605,16 @@ class Load extends Command {
             if (selectedPlaylist == null) {
                 loadObj.put("message", "Please select a source before attempting to load.");
             } else if (!selectedPlaylist.getSongs().isEmpty()) {
+//                if (loadedSong != null) {
+//                    loadedSong.setDuration(originalDuration);
+//                }
+                //outputs.add("name: " + selectedPlaylist.getSongs().get(0).getName() + " original duration: " + selectedPlaylist.getSongs().get(0).getDuration());
                 //originalDuration = selectedPlaylist.getSongs().get(0).getDuration();
                 loadObj.put("message", "Playback loaded successfully.");
                 loadedSong = selectedPlaylist.getSongs().get(0);
                 //System.out.println("load: " + loadedSong.getName() + "  " + loadedSong.getDuration());
+                loadedSong.setDuration(originalDuration);
+                //originalDuration = selectedPlaylist.getSongs().get(0).getDuration();
                 paused = false;
                 //currentTimestamp = timestamp;
                 playlist = true;
@@ -759,7 +819,6 @@ class AddRemoveInPlaylist extends Command {
         playlistObj.put("command", "addRemoveInPlaylist");
         playlistObj.put("user", username);
         playlistObj.put("timestamp", timestamp);
-        paused = true;
         for (Playlist playlist : allPlaylists) {
             if (playlist.getOwner().equals(username) && playlist.getId() == (playlistId)) {
                 if (Command.lastType == LastType.SONG) {

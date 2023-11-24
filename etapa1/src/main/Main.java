@@ -465,10 +465,12 @@ class Command {
             } else if (lastType == LastType.PLAYLIST && loadedSong == null) {
                 finished = true;
                 paused = true;
+                repeat = "No Repeat";
             }
         }
         currentTimestamp = timestamp;
         if (command.equals("search")) {
+            //outputs.add(timestamp);
             Search search = new Search(username, timestamp, type, filters);
             search.executeSearch(outputs);
         }
@@ -638,6 +640,7 @@ class Search extends Command {
                 }
             }
             case "playlist" -> {
+                //outputs.add(timestamp);
                 ArrayList<Playlist> playlists = new ArrayList<>(allPlaylists);
                 if (filters.containsKey("name")) {
                     playlists.removeIf(playlist -> !playlist.getName().startsWith((String) filters.get("name")));
@@ -646,7 +649,9 @@ class Search extends Command {
                     playlists.removeIf(playlist -> !playlist.getOwner().equals(filters.get("owner")));
                 }
                 if (playlists.isEmpty()) {
-                    searchObj.put("message", "no results found");
+                    searchObj.put("message", "Search returned 0 results");
+                    ArrayNode playlistArray = searchObj.putArray("results");
+                    outputs.add(searchObj);
                 } else {
                     if (playlists.size() > 5) {
                         playlists = new ArrayList<>(playlists.subList(0, 5));

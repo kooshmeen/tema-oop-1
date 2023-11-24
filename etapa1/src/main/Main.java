@@ -88,6 +88,7 @@ public final class Main {
 //        Command.setSEARCH_RES_PODCAST(new ArrayList<>());
 //        Command.setSearchResSong(new ArrayList<>());
 //        Command.setUSER_LIKED(new ArrayList<>());
+        Command.repeat = "No Repeat";
         Command.setLibrary(library);
         for (Command command: commands) {
             command.execute(outputs);
@@ -133,6 +134,7 @@ class Command {
     protected static int currentTimestamp = 0;
     protected static String repeat = "No Repeat";
     protected static boolean playlist = false;
+    protected static boolean finished = false;
     protected static String lastCommand = "";
     protected static ArrayList<Playlist> allPlaylists = new ArrayList<>();
 
@@ -235,16 +237,64 @@ class Command {
         Command.library = library;
     }
     public void execute(ArrayNode outputs) {
+//        if (timestamp == 4370) {
+//            outputs.add(paused);
+//            outputs.add(lastType.ordinal());
+//        }
         if (!paused) {
+//            if (timestamp == 257) {
+//                outputs.add(loadedSong.getDuration() + " " + loadedSong.getName() + playlist + " " + originalDuration + " " + repeat);
+//            }
+            if (lastType == LastType.SONG && loadedSong == null) {
+                finished = true;
+                paused = true;
+            }
             if (lastType == LastType.SONG && loadedSong != null) {
+                //outputs.add("song");
                 loadedSong.setDuration(loadedSong.getDuration() - (timestamp - currentTimestamp));
                 if (loadedSong.getDuration() <= 0 && !playlist && repeat.equals("No Repeat")) {
-                    loadedSong.setName("");
-                    loadedSong.setDuration(0);
+                    //loadedSong.setName("");
+                    //loadedSong.setDuration(0);
+                    finished = true;
                     paused = true;
                 } else if (loadedSong.getDuration() <= 0 && playlist
                         && loadedPlaylist.getSongs().indexOf(loadedSong)
-                        < loadedPlaylist.getSongs().size() - 1) {
+                        < loadedPlaylist.getSongs().size() - 1 && repeat.equals("No Repeat")) {
+                    int duration = loadedSong.getDuration();
+                    loadedSong =
+                            loadedPlaylist.getSongs().get(loadedPlaylist.getSongs()
+                                    .indexOf(loadedSong) + 1);
+                    loadedSong.setDuration(loadedSong.getDuration() + duration);
+                } else if (loadedSong.getDuration() <= 0 && playlist
+                        && loadedPlaylist.getSongs().indexOf(loadedSong)
+                        == loadedPlaylist.getSongs().size() - 1 && repeat.equals("No Repeat")) {
+                    //loadedSong.setName("");
+                    //loadedSong.setDuration(0);
+                    finished = true;
+                    paused = true;
+                } else if (loadedSong.getDuration() <= 0 && !playlist
+                        && repeat.equals("Repeat Once")) {
+                    int duration = loadedSong.getDuration();
+                    loadedSong.setDuration(originalDuration + duration);
+                    repeat = "No Repeat";
+                } else if (loadedSong.getDuration() <= 0 && playlist
+                        && loadedPlaylist.getSongs().indexOf(loadedSong)
+                        < loadedPlaylist.getSongs().size() - 1 && repeat.equals("Repeat once")) {
+                    int duration = loadedSong.getDuration();
+                    loadedSong =
+                            loadedPlaylist.getSongs().get(loadedPlaylist.getSongs()
+                                    .indexOf(loadedSong) + 1);
+                    loadedSong.setDuration(loadedSong.getDuration() + duration);
+                } else if (loadedSong.getDuration() <= 0 && !playlist
+                        && repeat.equals("Repeat Infinite")) {
+                    int duration = loadedSong.getDuration();
+                    while (duration + originalDuration < 0) {
+                        duration += originalDuration;
+                    }
+                    loadedSong.setDuration(originalDuration + duration);
+                } else if (loadedSong.getDuration() <= 0 && playlist
+                        && loadedPlaylist.getSongs().indexOf(loadedSong)
+                        < loadedPlaylist.getSongs().size() - 1 && repeat.equals("Repeat infinite")) {
                     int duration = loadedSong.getDuration();
                     loadedSong =
                             loadedPlaylist.getSongs().get(loadedPlaylist.getSongs()
@@ -259,12 +309,48 @@ class Command {
                         .indexOf(loadedEpisode)
                         == loadedPodcast.getEpisodes().size() - 1
                         && !playlist && repeat.equals("No Repeat")) {
-                    loadedEpisode.setName("");
-                    loadedEpisode.setDuration(0);
+//                    loadedEpisode.setName("");
+//                    loadedEpisode.setDuration(0);
+                    finished = true;
                     paused = true;
                 } else if (loadedEpisode.getDuration() <= 0 && loadedPodcast.getEpisodes()
                         .indexOf(loadedEpisode)
-                        != loadedPodcast.getEpisodes().size() - 1) {
+                        != loadedPodcast.getEpisodes().size() - 1 && repeat.equals("No Repeat")) {
+                    int duration = loadedEpisode.getDuration();
+                    loadedEpisode =
+                            loadedPodcast.getEpisodes().get(loadedPodcast.getEpisodes()
+                                    .indexOf(loadedEpisode) + 1);
+                    loadedEpisode.setDuration(loadedEpisode.getDuration() + duration);
+                } else if (loadedEpisode.getDuration() <= 0 && loadedPodcast.getEpisodes()
+                        .indexOf(loadedEpisode)
+                        == loadedPodcast.getEpisodes().size() - 1
+                        && !playlist && repeat.equals("Repeat once")) {
+                    int duration = loadedEpisode.getDuration();
+                    loadedEpisode =
+                            loadedPodcast.getEpisodes().get(0);
+                    loadedEpisode.setDuration(loadedEpisode.getDuration() + duration);
+                } else if (loadedEpisode.getDuration() <= 0 && loadedPodcast.getEpisodes()
+                        .indexOf(loadedEpisode)
+                        != loadedPodcast.getEpisodes().size() - 1
+                        && !playlist && repeat.equals("Repeat once")) {
+                    int duration = loadedEpisode.getDuration();
+                    loadedEpisode =
+                            loadedPodcast.getEpisodes().get(loadedPodcast.getEpisodes()
+                                    .indexOf(loadedEpisode) + 1);
+                    loadedEpisode.setDuration(loadedEpisode.getDuration() + duration);
+                } else if (loadedEpisode.getDuration() <= 0 && loadedPodcast.getEpisodes()
+                        .indexOf(loadedEpisode)
+                        == loadedPodcast.getEpisodes().size() - 1
+                        && !playlist && repeat.equals("Repeat infinite")) {
+                    int duration = loadedEpisode.getDuration();
+                    loadedEpisode =
+                            loadedPodcast.getEpisodes().get(loadedPodcast.getEpisodes()
+                                    .indexOf(loadedEpisode));
+                    loadedEpisode.setDuration(loadedEpisode.getDuration() + duration);
+                } else if (loadedEpisode.getDuration() <= 0 && loadedPodcast.getEpisodes()
+                        .indexOf(loadedEpisode)
+                        != loadedPodcast.getEpisodes().size() - 1
+                        && !playlist && repeat.equals("Repeat infinite")) {
                     int duration = loadedEpisode.getDuration();
                     loadedEpisode =
                             loadedPodcast.getEpisodes().get(loadedPodcast.getEpisodes()
@@ -272,23 +358,113 @@ class Command {
                     loadedEpisode.setDuration(loadedEpisode.getDuration() + duration);
                 }
             } else if (lastType == LastType.PLAYLIST && loadedSong != null) {
+                if (repeat.equals("Repeat Once") || repeat.equals("Repeat Infinite")) {
+                    repeat = "No Repeat";
+                }
+                //outputs.add("playlist");
+                //outputs.add("AKOPLSDNFKLN");
                 loadedSong.setDuration(loadedSong.getDuration()
                         - (timestamp - currentTimestamp));
                 if (loadedSong.getDuration() <= 0
                         && repeat.equals("No Repeat") && loadedPlaylist.getSongs().
                         indexOf(loadedSong) == loadedPlaylist.getSongs().size() - 1) {
-                    loadedSong.setName("");
-                    loadedSong.setDuration(0);
+                    //outputs.add("asdkopnfadngjk");
+//                    loadedSong.setName("");
+//                    loadedSong.setDuration(0);
+                    finished = true;
                     paused = true;
                 } else if (loadedSong.getDuration() <= 0 && playlist
                         && loadedPlaylist.getSongs().indexOf(loadedSong)
-                        < loadedPlaylist.getSongs().size() - 1) {
+                        < loadedPlaylist.getSongs().size() - 1 && repeat.equals("No Repeat")) {
                     int duration = loadedSong.getDuration();
                     loadedSong =
                             loadedPlaylist.getSongs().get(loadedPlaylist.getSongs()
                                     .indexOf(loadedSong) + 1);
-                    loadedSong.setDuration(loadedSong.getDuration() + duration);
+                    if (loadedSong.getDuration() + duration > 0) {
+                        loadedSong.setDuration(loadedSong.getDuration() + duration);
+                    } else {
+                        while (duration < 0) {
+                            duration += loadedSong.getDuration();
+                            if (duration < 0 && loadedPlaylist.getSongs().indexOf(loadedSong)
+                                    < loadedPlaylist.getSongs().size() - 1) {
+                                loadedSong =
+                                        loadedPlaylist.getSongs().get(loadedPlaylist.getSongs()
+                                                .indexOf(loadedSong) + 1);
+                            } else if (duration < 0 && loadedPlaylist.getSongs().indexOf(loadedSong)
+                                    == loadedPlaylist.getSongs().size() - 1) {
+                                finished = true;
+                                paused = true;
+                            }
+                        }
+                        if (duration + loadedSong.getDuration() > 0) {
+                            loadedSong.setDuration(loadedSong.getDuration() + duration);
+                        } else {
+                            finished = true;
+                            paused = true;
+                        }
+                    }
+                } else if (loadedSong.getDuration() <= 0 && playlist
+                        && loadedPlaylist.getSongs().indexOf(loadedSong)
+                        == loadedPlaylist.getSongs().size() - 1 && repeat.equals("No Repeat")) {
+                    //loadedSong.setName("");
+                    //loadedSong.setDuration(0);
+                    finished = true;
+                    paused = true;
+                } else if (loadedSong.getDuration() <= 0 && playlist
+                        && loadedPlaylist.getSongs().indexOf(loadedSong)
+                        == loadedPlaylist.getSongs().size() - 1 && repeat.equals("Repeat All")) {
+                    int duration = loadedSong.getDuration();
+                    loadedSong.setDuration(originalDuration);
+                    loadedSong =
+                            loadedPlaylist.getSongs().get(0);
+                    while (duration < 0) {
+                        duration += loadedSong.getDuration();
+                        if (duration < 0 && loadedPlaylist.getSongs().indexOf(loadedSong)
+                                < loadedPlaylist.getSongs().size() - 1) {
+                            loadedSong =
+                                    loadedPlaylist.getSongs().get(loadedPlaylist.getSongs()
+                                            .indexOf(loadedSong) + 1);
+                        } else if (duration < 0 && loadedPlaylist.getSongs().indexOf(loadedSong)
+                                == loadedPlaylist.getSongs().size() - 1) {
+                            loadedSong =
+                                    loadedPlaylist.getSongs().get(0);
+                        }
+                    }
+                    loadedSong.setDuration(originalDuration + duration);
+                } else if (loadedSong.getDuration() <= 0 && playlist
+                        && loadedPlaylist.getSongs().indexOf(loadedSong)
+                        < loadedPlaylist.getSongs().size() - 1 && repeat.equals("Repeat All")) {
+                    int duration = loadedSong.getDuration();
+                    loadedSong.setDuration(originalDuration);
+                    loadedSong =
+                            loadedPlaylist.getSongs().get(loadedPlaylist.getSongs()
+                                    .indexOf(loadedSong) + 1);
+                    while (duration < 0) {
+                        duration += loadedSong.getDuration();
+                        if (duration < 0 && loadedPlaylist.getSongs().indexOf(loadedSong)
+                                < loadedPlaylist.getSongs().size() - 1) {
+                            loadedSong =
+                                    loadedPlaylist.getSongs().get(loadedPlaylist.getSongs()
+                                            .indexOf(loadedSong) + 1);
+                        } else if (duration < 0 && loadedPlaylist.getSongs().indexOf(loadedSong)
+                                == loadedPlaylist.getSongs().size() - 1) {
+                            loadedSong =
+                                    loadedPlaylist.getSongs().get(0);
+                        }
+                    }
+                    loadedSong.setDuration(originalDuration - (originalDuration - duration));
+                } else if (loadedSong.getDuration() <= 0 && playlist
+                            && repeat.equals("Repeat Current Song")) {
+                    int duration = loadedSong.getDuration();
+                    loadedSong.setDuration(originalDuration);
+                    while (duration < 0) {
+                        duration += loadedSong.getDuration();
+                    }
+                    loadedSong.setDuration(originalDuration - (originalDuration - duration));
                 }
+            } else if (lastType == LastType.PLAYLIST && loadedSong == null) {
+                finished = true;
+                paused = true;
             }
         }
         currentTimestamp = timestamp;
@@ -370,6 +546,10 @@ class Command {
         if (command.equals("showPreferredSongs")) {
             ShowPrefferedSongs showPrefferedSongs = new ShowPrefferedSongs(username, timestamp);
             showPrefferedSongs.execute(outputs);
+        }
+        if (command.equals("repeat")) {
+            Repeat repeat = new Repeat(username, timestamp);
+            repeat.execute(outputs);
         }
         currentTimestamp = timestamp;
         lastCommand = command;
@@ -605,6 +785,7 @@ class Load extends Command {
                 loadedSong.setDuration(originalDuration);
                 //originalDuration = selectedSong.getDuration();
                 paused = false;
+                finished = false;
                 //currentTimestamp = timestamp;
                 playlist = false;
             }
@@ -622,6 +803,7 @@ class Load extends Command {
                 loadedEpisode.setDuration(originalDuration);
                 //originalDuration = selectedPodcast.getEpisodes().get(0).getDuration();
                 paused = false;
+                finished = false;
                 //currentTimestamp = timestamp;
                 playlist = false;
             }
@@ -640,6 +822,7 @@ class Load extends Command {
                 loadedSong.setDuration(originalDuration);
                 //originalDuration = selectedPlaylist.getSongs().get(0).getDuration();
                 paused = false;
+                finished = false;
                 //currentTimestamp = timestamp;
                 playlist = true;
                 loadedPlaylist = selectedPlaylist;
@@ -668,13 +851,13 @@ class Status extends Command {
         if (lastType == LastType.SONG) {
             if (loadedSong == null && !paused && !searchNull) {
                 statusObj.put("message", "No song is currently playing.");
-            } else if (loadedSong == null) {
+            } else if (loadedSong == null || finished) {
                 ObjectNode stats = statusObj.putObject("stats");
                 stats.put("name", "");
                 stats.put("remainedTime", 0);
                 stats.put("repeat", repeat);
                 stats.put("shuffle", shuffle);
-                stats.put("paused", !paused);
+                stats.put("paused", paused);
             } else {
                 ObjectNode stats = statusObj.putObject("stats");
                 stats.put("name", loadedSong.getName());
@@ -695,8 +878,15 @@ class Status extends Command {
                 stats.put("paused", paused);
             }
         } else if (lastType == LastType.PLAYLIST) {
-            if (loadedSong == null) {
+            if (loadedSong == null && !paused && !searchNull) {
                 statusObj.put("message", "No song is currently playing.");
+            } else if (loadedSong == null || finished) {
+                ObjectNode stats = statusObj.putObject("stats");
+                stats.put("name", "");
+                stats.put("remainedTime", 0);
+                stats.put("repeat", repeat);
+                stats.put("shuffle", shuffle);
+                stats.put("paused", paused);
             } else {
                 ObjectNode stats = statusObj.putObject("stats");
                 stats.put("name", loadedSong.getName());
@@ -1047,5 +1237,60 @@ class ShowPrefferedSongs extends Command {
             }
         }
         outputs.add(showPrefferedSongsObj);
+    }
+}
+
+class Repeat extends Command {
+    private final String username;
+    private final int timestamp;
+    public Repeat(String username, int timestamp) {
+        this.username = username;
+        this.timestamp = timestamp;
+    }
+    public void execute(ArrayNode outputs) {
+        ObjectNode repeatObj = new ObjectMapper().createObjectNode();
+        repeatObj.put("command", "repeat");
+        repeatObj.put("user", username);
+        repeatObj.put("timestamp", timestamp);
+        if (loadedEpisode != null || loadedSong != null) {
+            if (Command.lastType == LastType.SONG || Command.lastType == LastType.PODCAST) {
+                if (Command.repeat.equals("No Repeat")) {
+                    Command.repeat = "Repeat Once";
+                    repeatObj.put("message", "Repeat mode changed to repeat once.");
+                } else if (Command.repeat.equals("Repeat Once")) {
+                    Command.repeat = "Repeat Infinite";
+                    repeatObj.put("message", "Repeat mode changed to repeat infinite.");
+                } else if (Command.repeat.equals("Repeat Infinite")) {
+                    Command.repeat = "No Repeat";
+                    repeatObj.put("message", "Repeat mode changed to no repeat.");
+                } else if (Command.repeat.equals("Repeat All")) {
+                    Command.repeat = "Repeat Infinite";
+                    repeatObj.put("message", "Repeat mode changed to repeat infinite.");
+                } else if (Command.repeat.equals("Repeat Current Song")) {
+                    Command.repeat = "No Repeat";
+                    repeatObj.put("message", "Repeat mode changed to no repeat.");
+                }
+            } else {
+                if (Command.repeat.equals("No Repeat")) {
+                    Command.repeat = "Repeat All";
+                    repeatObj.put("message", "Repeat mode changed to repeat all.");
+                } else if (Command.repeat.equals("Repeat All")) {
+                    Command.repeat = "Repeat Current Song";
+                    repeatObj.put("message", "Repeat mode changed to repeat current song.");
+                } else if (Command.repeat.equals("Repeat Current Song")) {
+                    Command.repeat = "No Repeat";
+                    repeatObj.put("message", "Repeat mode changed to no repeat.");
+                } else if (Command.repeat.equals("Repeat Once")) {
+                    Command.repeat = "Repeat Current Song";
+                    repeatObj.put("message", "Repeat mode changed to repeat current song.");
+                } else if (Command.repeat.equals("Repeat Infinite")) {
+                    Command.repeat = "No Repeat";
+                    repeatObj.put("message", "Repeat mode changed to no repeat.");
+                }
+            }
+        } else {
+            repeatObj.put("message", "Please load a source before setting the repeat status.");
+        }
+        outputs.add(repeatObj);
     }
 }

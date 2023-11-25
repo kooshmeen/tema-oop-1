@@ -414,7 +414,7 @@ class Command {
                     }
                     loadedSong.setDuration(originalDuration - (originalDuration - duration));
                 } else if (loadedSong.getDuration() <= 0 && playlist
-                            && repeat.equals("Repeat Current Song")) {
+                        && repeat.equals("Repeat Current Song")) {
                     int duration = loadedSong.getDuration();
                     loadedSong.setDuration(originalDuration);
                     while (duration < 0) {
@@ -609,6 +609,14 @@ class Command {
                 Shuffle shuffle = new Shuffle(username, timestamp);
                 shuffle.execute(outputs);
             }
+            case "follow" -> {
+                Follow follow = new Follow(username, timestamp, selectedPlaylist);
+                follow.execute(outputs);
+            }
+            case "switchVisibility" -> {
+                SwitchVisibility switchVisibility = new SwitchVisibility(username, timestamp, playlistName, playlistId);
+                switchVisibility.execute(outputs);
+            }
         }
         currentTimestamp = timestamp;
         lastCommand = command;
@@ -699,6 +707,7 @@ class Search extends Command {
                 if (filters.containsKey("owner")) {
                     playlists.removeIf(playlist -> !playlist.getOwner().equals(filters.get("owner")));
                 }
+                playlists.removeIf(playlist -> !playlist.getOwner().equals(username) && playlist.getVisibility().equals("private"));
                 if (playlists.isEmpty()) {
                     searchObj.put("message", "Search returned 0 results");
                     ArrayNode playlistArray = searchObj.putArray("results");
@@ -762,7 +771,7 @@ class Select extends Command {
         selectObj.put("user", username);
         selectObj.put("timestamp", timestamp);
         if (lastType == LastType.SONG) {
-            if (itemNumber - 1 >= SEARCH_RES_SONG.size()) {
+            if (itemNumber - 1 >= SEARCH_RES_SONG.size() && !SEARCH_RES_SONG.isEmpty()) {
                 selectObj.put("message", "The selected ID is too high.");
             } else if (SEARCH_RES_SONG.isEmpty()) {
                 selectObj.put("message", "Please conduct a search before making a selection.");
@@ -774,10 +783,11 @@ class Select extends Command {
                 selectObj.put("message", "Successfully selected " + SEARCH_RES_SONG.get(itemNumber - 1).getName() + ".");
                 selectedSong = SEARCH_RES_SONG.get(itemNumber - 1);
                 originalDuration = selectedSong.getDuration();
+                SEARCH_RES_SONG.clear();
             }
             outputs.add(selectObj);
         } else if (lastType == LastType.PODCAST) {
-            if (itemNumber - 1 >= SEARCH_RES_PODCAST.size()) {
+            if (itemNumber - 1 >= SEARCH_RES_PODCAST.size() && !SEARCH_RES_PODCAST.isEmpty()) {
                 selectObj.put("message", "The selected ID is too high.");
             } else if (selectedPodcast == null) {
                 selectObj.put("message", "Please conduct a search before making a selection.");
@@ -788,10 +798,11 @@ class Select extends Command {
                 selectObj.put("message", "Successfully selected " + SEARCH_RES_PODCAST.get(itemNumber - 1).getName() + ".");
                 selectedPodcast = SEARCH_RES_PODCAST.get(itemNumber - 1);
                 originalDuration = selectedPodcast.getEpisodes().get(0).getDuration();
+                SEARCH_RES_PODCAST.clear();
             }
             outputs.add(selectObj);
         } else if (lastType == LastType.PLAYLIST) {
-            if (itemNumber - 1 >= SEARCHED_PLAYLIST.size()) {
+            if (itemNumber - 1 >= SEARCHED_PLAYLIST.size() && !SEARCHED_PLAYLIST.isEmpty()) {
                 selectObj.put("message", "The selected ID is too high.");
             } else if (SEARCHED_PLAYLIST.isEmpty()) {
                 selectObj.put("message", "Please conduct a search before making a selection.");
@@ -803,6 +814,7 @@ class Select extends Command {
                 selectObj.put("message", "Successfully selected " + SEARCHED_PLAYLIST.get(itemNumber - 1).getName() + ".");
                 selectedPlaylist = SEARCHED_PLAYLIST.get(itemNumber - 1);
                 originalDuration = selectedPlaylist.getSongs().get(0).getDuration();
+                SEARCHED_PLAYLIST.clear();
             }
             outputs.add(selectObj);
         } else {
@@ -839,6 +851,7 @@ class Load extends Command {
                 loadObj.put("message", "Playback loaded successfully.");
                 loadedSong = selectedSong;
                 loadedSong.setDuration(originalDuration);
+                selectedSong = null;
                 //originalDuration = selectedSong.getDuration();
                 paused = false;
                 finished = false;
@@ -1008,6 +1021,22 @@ class Playlist {
     private ArrayList<SongInput> songs;
     private int userId;
     private int followers;
+    private ArrayList<String> followersList;
+
+    public ArrayList<String> getFollowersList() {
+        return followersList;
+    }
+    public void addFollower(String follower) {
+        followersList.add(follower);
+        followers++;
+    }
+    public void removeFollower(String follower) {
+        followersList.remove(follower);
+        followers--;
+    }
+    public void setFollowersList(ArrayList<String> followersList) {
+        this.followersList = followersList;
+    }
 
     public int getFollowers() {
         return followers;
@@ -1019,6 +1048,7 @@ class Playlist {
 
     public Playlist() {
         songs = new ArrayList<>();
+        followersList = new ArrayList<>();
     }
 
     public enum Visibility {
@@ -1379,5 +1409,68 @@ class Shuffle extends Command {
             shuffleObj.put("message", "The loaded source is not a playlist.");
         }
         outputs.add(shuffleObj);
+    }
+}
+
+class Follow extends Command {
+    private final String username;
+    private final int timestamp;
+    private final Playlist selectedPlaylist;
+    private int playlistId;
+    public Follow(String username, int timestamp, Playlist playlistName) {
+        this.username = username;
+        this.timestamp = timestamp;
+        this.selectedPlaylist = playlistName;
+    }
+    public void execute(ArrayNode outputs) {
+        ObjectNode followObj = new ObjectMapper().createObjectNode();
+        followObj.put("command", "follow");
+        followObj.put("user", username);
+        followObj.put("timestamp", timestamp);
+        for (Playlist playlist : allPlaylists) {
+            if (playlist.getId() == selectedPlaylist.getId() && playlist.getName().equals(selectedPlaylist.getName())) {
+                if (playlist.getFollowersList().contains(username)) {
+                    playlist.setFollowers(playlist.getFollowers() - 1);
+                    playlist.getFollowersList().remove(username);
+                    followObj.put("message", "Playlist unfollowed successfully.");
+                } else {
+                    playlist.setFollowers(playlist.getFollowers() + 1);
+                    playlist.getFollowersList().add(username);
+                    followObj.put("message", "Playlist followed successfully.");
+                }
+            }
+        }
+        outputs.add(followObj);
+    }
+}
+
+class SwitchVisibility extends Command {
+private final String username;
+    private final int timestamp;
+    private final String playlistName;
+    private int playlistId;
+    public SwitchVisibility(String username, int timestamp, String playlistName, int playlistId) {
+        this.username = username;
+        this.timestamp = timestamp;
+        this.playlistName = playlistName;
+        this.playlistId = playlistId;
+    }
+    public void execute(ArrayNode outputs) {
+        ObjectNode playlistObj = new ObjectMapper().createObjectNode();
+        playlistObj.put("command", "switchVisibility");
+        playlistObj.put("user", username);
+        playlistObj.put("timestamp", timestamp);
+        for (Playlist playlist : allPlaylists) {
+            if (playlist.getOwner().equals(username) && playlist.getId() == (playlistId)) {
+                if (playlist.getVisibility().equals(Playlist.Visibility.PUBLIC)) {
+                    playlist.setVisibility(Playlist.Visibility.PRIVATE);
+                    playlistObj.put("message", "Visibility status updated successfully to private.");
+                } else {
+                    playlist.setVisibility(Playlist.Visibility.PUBLIC);
+                    playlistObj.put("message", "Visibility status updated successfully to public.");
+                }
+            }
+        }
+        outputs.add(playlistObj);
     }
 }

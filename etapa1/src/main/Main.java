@@ -85,6 +85,8 @@ public final class Main {
         Command.setAllPlaylists(new ArrayList<>());
         Command.repeat = "No Repeat";
         Command.shuffleFlag = false;
+        Command.USER_LIKED.clear();
+        Command.likedSongs.clear();
         Command.setLibrary(library);
         for (Command command: commands) {
             command.execute(outputs);
@@ -135,6 +137,7 @@ class Command {
     protected static String lastCommand = "";
     protected static boolean shuffleFlag = false;
     protected static ArrayList<Playlist> allPlaylists = new ArrayList<>();
+    protected static ArrayList<LikedSongs> likedSongs = new ArrayList<>();
 
     public static void setAllPlaylists(ArrayList<Playlist> allPlaylists) {
         Command.allPlaylists = allPlaylists;
@@ -616,6 +619,14 @@ class Command {
             case "switchVisibility" -> {
                 SwitchVisibility switchVisibility = new SwitchVisibility(username, timestamp, playlistName, playlistId);
                 switchVisibility.execute(outputs);
+            }
+            case "getTop5Songs" -> {
+                GetTop5Songs getTop5Songs = new GetTop5Songs(timestamp);
+                getTop5Songs.execute(outputs);
+            }
+            case "getTop5Playlists" -> {
+                GetTop5Playlists getTop5Playlists = new GetTop5Playlists(timestamp);
+                getTop5Playlists.execute(outputs);
             }
         }
         currentTimestamp = timestamp;
@@ -1265,9 +1276,32 @@ class Like extends Command {
             if (userLikeIt.getSongs().contains(songToLike)) {
                 likeObj.put("message", "Unlike registered successfully.");
                 userLikeIt.removeSong(songToLike);
+                for (LikedSongs song : likedSongs) {
+                    if (song.getName().equals(songToLike.getName())) {
+                        song.removeLike();
+                    }
+                }
             } else {
                 userLikeIt.addSong(songToLike);
                 likeObj.put("message", "Like registered successfully.");
+                if (likedSongs.isEmpty()) {
+                    likedSongs.add(new LikedSongs(songToLike.getName()));
+                    likedSongs.get(0).addLike();
+                } else {
+                    boolean found = false;
+                    for (LikedSongs song : likedSongs) {
+                        if (song.getName().equals(songToLike.getName())) {
+                            song.addLike();
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (!found) {
+                        likedSongs.add(new LikedSongs(songToLike.getName()));
+                        likedSongs.get(likedSongs.size() - 1).addLike();
+                    }
+                }
+
             }
         } else {
             likeObj.put("message", "Loaded source is not a song.");
@@ -1490,5 +1524,88 @@ private final String username;
             }
         }
         outputs.add(playlistObj);
+    }
+}
+
+class GetTop5Songs extends Command {
+    private final int timestamp;
+    public GetTop5Songs(int timestamp) {
+        this.timestamp = timestamp;
+    }
+    public void execute(ArrayNode outputs) {
+        ObjectNode top5SongsObj = new ObjectMapper().createObjectNode();
+        top5SongsObj.put("command", "getTop5Songs");
+        top5SongsObj.put("timestamp", timestamp);
+        ArrayList<LikedSongs> songs = new ArrayList<>();
+        ArrayList<String> topSongs = new ArrayList<>();
+        for (LikedSongs song : likedSongs) {
+            if (song.getLikes() > 0) {
+                songs.add(song);
+            }
+        }
+        songs.sort(Comparator.comparingInt(LikedSongs::getLikes).reversed());
+        for (LikedSongs song : songs) {
+            topSongs.add(song.getName());
+        }
+        if (songs.size() > 5) {
+            topSongs = new ArrayList<>(topSongs.subList(0, 5));
+        }
+        if (songs.size() < 5) {
+            for (int i = 0; i < 5 - songs.size(); i++) {
+                topSongs.add(library.getSongs().get(i).getName());
+            }
+        }
+        ArrayNode songArray = top5SongsObj.putArray("result");
+        for (String song : topSongs) {
+            songArray.add(String.valueOf(song));
+        }
+        outputs.add(top5SongsObj);
+    }
+}
+
+class GetTop5Playlists extends Command {
+    private final int timestamp;
+    public GetTop5Playlists(int timestamp) {
+        this.timestamp = timestamp;
+    }
+    public void execute(ArrayNode outputs) {
+        ObjectNode top5PlaylistsObj = new ObjectMapper().createObjectNode();
+        top5PlaylistsObj.put("command", "getTop5Playlists");
+        top5PlaylistsObj.put("timestamp", timestamp);
+        ArrayList<Playlist> playlists = new ArrayList<>();
+        for (Playlist playlist : allPlaylists) {
+            if (playlist.getFollowers() >= 0) {
+                playlists.add(playlist);
+            }
+        }
+        playlists.sort(Comparator.comparingInt(Playlist::getFollowers).reversed());
+        if (playlists.size() > 5) {
+            playlists = new ArrayList<>(playlists.subList(0, 5));
+        }
+        ArrayNode playlistArray = top5PlaylistsObj.putArray("result");
+        for (Playlist playlist : playlists) {
+            playlistArray.add(playlist.getName());
+        }
+        outputs.add(top5PlaylistsObj);
+    }
+}
+
+class LikedSongs {
+    private final String name;
+    private int likes = 0;
+    public LikedSongs(String name) {
+        this.name = name;
+    }
+    public void addLike() {
+        likes++;
+    }
+    public void removeLike() {
+        likes--;
+    }
+    public String getName() {
+        return name;
+    }
+    public int getLikes() {
+        return likes;
     }
 }

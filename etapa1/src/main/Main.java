@@ -707,7 +707,7 @@ class Search extends Command {
                 if (filters.containsKey("owner")) {
                     playlists.removeIf(playlist -> !playlist.getOwner().equals(filters.get("owner")));
                 }
-                playlists.removeIf(playlist -> !playlist.getOwner().equals(username) && playlist.getVisibility().equals("private"));
+                playlists.removeIf(playlist -> !playlist.getOwner().equals(username) && playlist.getVisibility() == Playlist.Visibility.PRIVATE);
                 if (playlists.isEmpty()) {
                     searchObj.put("message", "Search returned 0 results");
                     ArrayNode playlistArray = searchObj.putArray("results");
@@ -773,6 +773,7 @@ class Select extends Command {
         if (lastType == LastType.SONG) {
             if (itemNumber - 1 >= SEARCH_RES_SONG.size() && !SEARCH_RES_SONG.isEmpty()) {
                 selectObj.put("message", "The selected ID is too high.");
+                selectedSong = null;
             } else if (SEARCH_RES_SONG.isEmpty()) {
                 selectObj.put("message", "Please conduct a search before making a selection.");
             } else {
@@ -789,6 +790,7 @@ class Select extends Command {
         } else if (lastType == LastType.PODCAST) {
             if (itemNumber - 1 >= SEARCH_RES_PODCAST.size() && !SEARCH_RES_PODCAST.isEmpty()) {
                 selectObj.put("message", "The selected ID is too high.");
+                selectedPodcast = null;
             } else if (selectedPodcast == null) {
                 selectObj.put("message", "Please conduct a search before making a selection.");
             } else {
@@ -802,8 +804,9 @@ class Select extends Command {
             }
             outputs.add(selectObj);
         } else if (lastType == LastType.PLAYLIST) {
-            if (itemNumber - 1 >= SEARCHED_PLAYLIST.size() && !SEARCHED_PLAYLIST.isEmpty()) {
+            if (itemNumber - 1 >= SEARCHED_PLAYLIST.size()) {
                 selectObj.put("message", "The selected ID is too high.");
+                selectedPlaylist = null;
             } else if (SEARCHED_PLAYLIST.isEmpty()) {
                 selectObj.put("message", "Please conduct a search before making a selection.");
             } else {
@@ -1427,6 +1430,21 @@ class Follow extends Command {
         followObj.put("command", "follow");
         followObj.put("user", username);
         followObj.put("timestamp", timestamp);
+        if (lastType != LastType.PLAYLIST) {
+            followObj.put("message", "The selected source is not a playlist.");
+            outputs.add(followObj);
+            return;
+        }
+        if (selectedPlaylist == null || !lastCommand.equals("select")) {
+            followObj.put("message", "Please select a source before following or unfollowing.");
+            outputs.add(followObj);
+            return;
+        }
+        if (selectedPlaylist.getOwner().equals(username)) {
+            followObj.put("message", "You cannot follow or unfollow your own playlist.");
+            outputs.add(followObj);
+            return;
+        }
         for (Playlist playlist : allPlaylists) {
             if (playlist.getId() == selectedPlaylist.getId() && playlist.getName().equals(selectedPlaylist.getName())) {
                 if (playlist.getFollowersList().contains(username)) {
